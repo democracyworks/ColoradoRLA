@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -287,6 +288,50 @@ public final class CastVoteRecordQueries {
                         ", type " + the_type + ", sequence " + the_sequence_number);
     } else {
       Main.LOGGER.debug("found CVR " + result);
+    }
+
+    return result;
+  }
+
+  /**
+   * Obtain the UPLOADED CastVoteRecord objects with the specified county, and
+   * sequence numbers.
+   * note: Copied from get(county_id,type,sequence_numbers)
+   *
+   * @param the_county_id The county.
+   * @param the_type The type.
+   * @param the_sequence_numbers The sequence numbers.
+   * @return the matching CastVoteRecord objects,
+   * an empty list if no records match, or null if the query fails.
+   */
+  public static List<CastVoteRecord> get(final Long the_county_id,
+                                         final List<Long> the_sequence_numbers) {
+    List<CastVoteRecord> result = new LinkedList<CastVoteRecord>();
+    try {
+      final Session s = Persistence.currentSession();
+      final CriteriaBuilder cb = s.getCriteriaBuilder();
+      final CriteriaQuery<CastVoteRecord> cq = cb.createQuery(CastVoteRecord.class);
+      final Root<CastVoteRecord> root = cq.from(CastVoteRecord.class);
+      final List<Predicate> conjuncts = new ArrayList<>();
+      conjuncts.add(cb.equal(root.get(COUNTY_ID), the_county_id));
+      conjuncts.add(cb.equal(root.get(RECORD_TYPE), RecordType.UPLOADED));
+      // "my_cvr_number" column is is the value from the csv "CvrNumber" (which
+      // is 1 based) so we are counting on this to be sequential. The
+      // "sequence_number" column might also be an option. That is the
+      // my_record_count incremented counter in DominionCVRExportParser. That
+      // number, however, is 0 based and our generated numbers are 1 based
+      conjuncts.add(root.get("my_cvr_number").in(the_sequence_numbers));
+      cq.select(root).where(cb.and(conjuncts.toArray(new Predicate[conjuncts.size()])));
+      final TypedQuery<CastVoteRecord> query = s.createQuery(cq);
+      result = query.getResultList();
+    } catch (final PersistenceException e) {
+      Main.LOGGER.error(COULD_NOT_QUERY_DATABASE);
+    }
+    if (result == null) {
+      Main.LOGGER.debug("found no CVRs for county " + the_county_id +
+                        ", type " + RecordType.UPLOADED + ", sequence " + the_sequence_numbers);
+    } else {
+      Main.LOGGER.debug("found " + result.size() + "CVRs ");
     }
 
     return result;

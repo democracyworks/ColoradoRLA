@@ -513,7 +513,20 @@ public final class Main {
     
     return sb.toString();
   }
-  
+
+
+  /**
+   * find property value and coerce to boolean or return defaultValue if not found
+   **/
+  public static boolean getBooleanProperty(final String propName, final Boolean defaultValue) {
+    final String v = static_properties.getProperty(propName);
+    if (v == null) {
+      return defaultValue;
+    } else {
+      return Boolean.parseBoolean(v);
+    }
+  }
+
   /**
    * Starts a ColoradoRLA server.
    */

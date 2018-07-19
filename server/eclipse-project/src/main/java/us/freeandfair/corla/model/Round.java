@@ -402,7 +402,11 @@ public class Round implements Serializable {
     my_signatories.clear();
     my_signatories.addAll(the_signatories);
   }
-  
+
+  /** stub **/
+  public List<Long> generatedNumbers() {
+    return new ArrayList<Long>();
+  }
   /**
    * @return a String representation of this elector.
    */

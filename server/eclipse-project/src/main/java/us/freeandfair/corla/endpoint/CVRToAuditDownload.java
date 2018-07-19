@@ -19,7 +19,6 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.OptionalInt;
@@ -35,14 +34,13 @@ import spark.Request;
 import spark.Response;
 
 import us.freeandfair.corla.Main;
-import us.freeandfair.corla.controller.ComparisonAuditController;
+import us.freeandfair.corla.controller.BallotSelection;
+import us.freeandfair.corla.controller.CVRSelection;
 import us.freeandfair.corla.json.CVRToAuditResponse;
-import us.freeandfair.corla.json.CVRToAuditResponse.BallotOrderComparator;
-import us.freeandfair.corla.model.CastVoteRecord;
 import us.freeandfair.corla.model.County;
 import us.freeandfair.corla.model.CountyDashboard;
+import us.freeandfair.corla.model.Round;
 import us.freeandfair.corla.persistence.Persistence;
-import us.freeandfair.corla.query.BallotManifestInfoQueries;
 import us.freeandfair.corla.util.SparkHelper;
 
 /**
@@ -211,9 +209,9 @@ public class CVRToAuditDownload extends AbstractEndpoint {
       }
       // get other things we need
       final CountyDashboard cdb = Persistence.getByID(county.id(), CountyDashboard.class);
-      final List<CastVoteRecord> cvr_to_audit_list;      
-      final List<CVRToAuditResponse> response_list = new ArrayList<>();
-      
+      List<CVRToAuditResponse> response_list;
+
+
       // compute the round, if any
       OptionalInt round = OptionalInt.empty(); 
       if (round_param != null) {
@@ -225,28 +223,34 @@ public class CVRToAuditDownload extends AbstractEndpoint {
                                         round_param + " for county " + cdb.id());
         }
       }
-      
-      if (round.isPresent()) {
-        cvr_to_audit_list = 
-            ComparisonAuditController.ballotsToAudit(cdb, round.getAsInt(), audited);
+
+      // feature flag - for emergencies only - TODO: remove after confidence achieved
+      final boolean use_ballot_manifest_selection =
+          Main.getBooleanProperty("feature_flag.use_ballot_manifest_selection", true);
+
+      if (use_ballot_manifest_selection) {
+        final Round the_round = cdb.rounds().get(round.getAsInt() - 1);
+        // replace the var
+        response_list = BallotSelection.selectBallots(the_round.generatedNumbers(),
+                                                      county.id());
       } else {
-        cvr_to_audit_list = 
-            ComparisonAuditController.computeBallotOrder(cdb, index, ballot_count, 
-                                                         duplicates, audited);
+        // replace the var
+        response_list = CVRSelection.selectCVRs(cdb,
+                                                round,
+                                                audited,
+                                                duplicates,
+                                                ballot_count,
+                                                index);
       }
-     
-      for (int i = 0; i < cvr_to_audit_list.size(); i++) {
-        final CastVoteRecord cvr = cvr_to_audit_list.get(i);
-        final String location = BallotManifestInfoQueries.locationFor(cvr);
-        response_list.add(new CVRToAuditResponse(i, cvr.scannerID(), 
-                                                 cvr.batchID(), cvr.recordID(), 
-                                                 cvr.imprintedID(), 
-                                                 cvr.cvrNumber(), cvr.id(),
-                                                 cvr.ballotType(), location,
-                                                 cvr.auditFlag()));
-      }
-      response_list.sort(new BallotOrderComparator());
-      
+
+
+
+
+
+
+
+
+
       // generate a CSV file from the response list
       the_response.type("text/csv");
       
@@ -306,4 +310,6 @@ public class CVRToAuditDownload extends AbstractEndpoint {
       }
     } 
   }
+
+
 }

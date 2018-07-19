@@ -171,11 +171,11 @@ public final class BallotManifestInfoQueries {
           cb.createQuery(BallotManifestInfo.class);
       final Root<BallotManifestInfo> root = cq.from(BallotManifestInfo.class);
       final List<Predicate> disjuncts = new ArrayList<Predicate>();
-      final Predicate start = cb.greaterThanOrEqualTo(root.get("my_sequence_start"), the_n);
-      final Predicate end = cb.lessThanOrEqualTo(root.get("my_sequence_end"), the_n);
+      final Predicate start = cb.lessThanOrEqualTo(root.get("my_sequence_start"), the_n);
+      final Predicate end = cb.greaterThanOrEqualTo(root.get("my_sequence_end"), the_n);
       disjuncts.add(start);
       disjuncts.add(end);
-      cq.select(root).where(cb.or(disjuncts.toArray(new Predicate[disjuncts.size()])));
+      cq.select(root).where(cb.and(disjuncts.toArray(new Predicate[disjuncts.size()])));
       final TypedQuery<BallotManifestInfo> query = s.createQuery(cq);
       result = new HashSet<BallotManifestInfo>(query.getResultList());
     } catch (final PersistenceException e) {
