@@ -104,7 +104,15 @@ public class Round implements Serializable {
    */
   @Column(nullable = false, updatable = false)
   private Integer my_previous_ballots_audited;
-  
+
+  /**
+   * The sequence of random numbers that were generated for this round.
+   */
+  @Column(nullable = false, updatable = false,
+          name = "generated_numbers", columnDefinition = TEXT)
+  @Convert(converter = LongListConverter.class)
+  private List<Long> my_generated_numbers;
+
   /**
    * The sequence of CVR IDs for ballots to audit in this round, 
    * in the order they are to be presented.
@@ -113,7 +121,7 @@ public class Round implements Serializable {
           name = "ballot_sequence", columnDefinition = TEXT)
   @Convert(converter = LongListConverter.class)
   private List<Long> my_ballot_sequence;
-  
+
   /**
    * The CVR IDs for the audit subsequence to audit in this
    * round, in audit sequence order. 
@@ -173,6 +181,7 @@ public class Round implements Serializable {
                final Integer the_previous_ballots_audited,
                final Integer the_expected_audited_prefix_length,
                final Integer the_start_audited_prefix_length,
+               final List<Long> the_generated_numbers,
                final List<Long> the_ballot_sequence,
                final List<Long> the_audit_subsequence) {
     super();
@@ -184,6 +193,7 @@ public class Round implements Serializable {
     my_start_audited_prefix_length = the_start_audited_prefix_length;
     my_actual_audited_prefix_length = the_start_audited_prefix_length;
     my_previous_ballots_audited = the_previous_ballots_audited;
+    my_generated_numbers = the_generated_numbers;
     my_ballot_sequence = the_ballot_sequence;
     my_audit_subsequence = the_audit_subsequence;
   }
@@ -271,7 +281,14 @@ public class Round implements Serializable {
   public void setActualAuditedPrefixLength(final int the_audited_prefix_length) {
     my_actual_audited_prefix_length = the_audited_prefix_length;
   }
-  
+
+  /**
+   * @return the sequence of random numbers that were generated for this round.
+   */
+  public List<Long> generatedNumbers() {
+    return my_generated_numbers;
+  }
+
   /**
    * @return the ballot sequence for this round.
    */
@@ -402,7 +419,7 @@ public class Round implements Serializable {
     my_signatories.clear();
     my_signatories.addAll(the_signatories);
   }
-  
+
   /**
    * @return a String representation of this elector.
    */
@@ -457,7 +474,7 @@ public class Round implements Serializable {
     final Round result =
         new Round(my_number, my_start_time, my_expected_count, my_previous_ballots_audited,
                   my_expected_audited_prefix_length, my_start_audited_prefix_length,
-                  null, null);
+                  null, null, null);
     result.my_actual_count = my_actual_count;
     result.my_actual_audited_prefix_length = my_actual_audited_prefix_length;
     result.my_discrepancies = my_discrepancies;

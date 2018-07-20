@@ -465,6 +465,7 @@ public class CountyDashboard implements PersistentEntity {
   public void startRound(final int the_number_of_ballots, 
                          final int the_prefix_length,
                          final int the_start_index,
+                         final List<Long> the_generated_numbers,
                          final List<Long> the_ballots_to_audit,
                          final List<Long> the_audit_subsequence) {
     if (my_current_round_index == null) {
@@ -479,6 +480,7 @@ public class CountyDashboard implements PersistentEntity {
                                   my_ballots_audited,
                                   the_prefix_length,
                                   the_start_index,
+                                  the_generated_numbers,
                                   the_ballots_to_audit,
                                   the_audit_subsequence);
     my_rounds.add(round);
