@@ -54,7 +54,7 @@ public class BallotSelectionTest {
     List<CVRToAuditResponse> results = makeSelection(rand,sequence_start);
     Assert.assertEquals(1, results.size());
     Assert.assertEquals(results.get(0).imprintedID(), "1-1-7");
-    Assert.assertEquals(results.get(0).ballotType(), "NOT FOUND");
+    Assert.assertEquals(results.get(0).ballotType(), "PHANTOM RECORD");
     Assert.assertEquals(results.get(0).cvrNumber(), 0);
   }
 

@@ -21,8 +21,7 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import us.freeandfair.corla.Main;
 import us.freeandfair.corla.crypto.PseudoRandomNumberGenerator;
@@ -387,36 +386,23 @@ public final class ComparisonAuditController {
     the_cdb.setOptimisticSamplesToAudit(Math.max(0,  to_audit));
     if (!county_driving_contests.isEmpty() && 0 < to_audit) {
       final CountyService county_service = new CountyService(the_cdb.county());
+
       // Random numbers based on the number of ballots to audit, in the range
       // [1, max_ballot_count_to_audit]
       final List<Long> generated_numbers =
           county_service.getRandomNumbers(0, to_audit - 1);
 
-      // the list of CVRs to audit, in audit sequence order
-      final List<CastVoteRecord> cvrs_to_audit =
-          getCVRsInAuditSequence(the_cdb.county(), 0, to_audit - 1);
+      final BallotSelection.RoundDef roundDef = BallotSelection
+          .defineRound(generated_numbers,
+                       the_cdb.county().id());
 
-      // the IDs of the CVRs to audit, in audit sequence order
-      final List<Long> audit_subsequence_ids = new ArrayList<Long>();
-      for (final CastVoteRecord cvr : cvrs_to_audit) {
-        audit_subsequence_ids.add(cvr.id());
-      }
-
-      // deduplicate the CVRs and put them in ballot order
-      final SortedSet<CastVoteRecord> sorted_deduplicated_cvrs =
-          new TreeSet<CastVoteRecord>(new CastVoteRecord.BallotOrderComparator());
-      sorted_deduplicated_cvrs.addAll(cvrs_to_audit);
-      final List<Long> ballot_ids_to_audit = new ArrayList<Long>();
-      for (final CastVoteRecord cvr : sorted_deduplicated_cvrs) {
-        ballot_ids_to_audit.add(cvr.id());
-      }
-
-      the_cdb.startRound(sorted_deduplicated_cvrs.size(),
+      the_cdb.startRound(roundDef.expected_count,
                          to_audit,
                          0,
-                         generated_numbers,
-                         ballot_ids_to_audit,
-                         audit_subsequence_ids);
+                         roundDef.generated_numbers,
+                         roundDef.ballot_sequence,
+                         roundDef.audit_subsequence
+                         );
       updateRound(the_cdb, the_cdb.currentRound());
       updateCVRUnderAudit(the_cdb);
     } else {
@@ -435,81 +421,45 @@ public final class ComparisonAuditController {
    * @param the_multiplier The multiplier.
    * @return true if a round is started, false otherwise (a round might not
    * be started because the risk limit has already been achieved).
-   * @exception IllegalStateException if a round cannot be started from
-   * estimates because there are no previous rounds.
    */
-  public static boolean startNewRoundOfLength(final CountyDashboard the_cdb,
-                                              final int the_round_length,
-                                              final BigDecimal the_multiplier) {
+  public static boolean startNewRound(final CountyDashboard the_cdb,
+                                      final BigDecimal the_multiplier,
+                                      final int the_round_length) {
     final List<Round> rounds = the_cdb.rounds();
-    int start_index = 0;
-    if (rounds.isEmpty()) {
-      throw new IllegalArgumentException("no previous audit rounds");
-    } else {
-      final Round previous_round = rounds.get(rounds.size() - 1);
-      // we start the next round where the previous round actually ended
-      // in the audit sequence
-      start_index = previous_round.actualAuditedPrefixLength();
-    }
+
+    final int start_index = rounds.get(rounds.size() -  1).actualAuditedPrefixLength();
+
+    final List<Long> exclusions = rounds.stream()
+        .map(r -> r.ballotSequence())
+        .flatMap(List::stream)
+        .collect(Collectors.toList());
 
     final CountyService county_service = new CountyService(the_cdb.county());
+
     // Random numbers based on the number of ballots to audit, in the range
     // [1, max_ballot_count_to_audit]
-    final List<Long> generated_numbers =
-        county_service.getRandomNumbers(start_index, the_round_length);
+    final List<Long> generated_numbers = county_service
+        .getRandomNumbers(start_index, the_round_length);
 
-    // the list of CVRs to audit, in audit sequence order
-    final List<CastVoteRecord> new_cvrs =
-        getCVRsInAuditSequence(the_cdb.county(), start_index, the_round_length);
+    final BallotSelection.RoundDef roundDef = BallotSelection
+        .defineRound(generated_numbers,
+                     the_cdb.county().id(),
+                     exclusions);
 
-    List<CastVoteRecord> extra_cvrs = new_cvrs;
-    final SortedSet<CastVoteRecord> sorted_deduplicated_new_cvrs =
-        new TreeSet<>(new CastVoteRecord.BallotOrderComparator());
-    sorted_deduplicated_new_cvrs.addAll(new_cvrs);
-    while (!extra_cvrs.isEmpty() &&
-           sorted_deduplicated_new_cvrs.size() < the_round_length) {
-      extra_cvrs =
-          getCVRsInAuditSequence(the_cdb.county(), start_index + new_cvrs.size(),
-                                 the_round_length - sorted_deduplicated_new_cvrs.size());
-      new_cvrs.addAll(extra_cvrs);
-      sorted_deduplicated_new_cvrs.addAll(extra_cvrs);
-    }
-
-    // the IDs of the CVRs to audit, in audit sequence order
-    final List<Long> new_cvr_ids = new ArrayList<>();
-    for (final CastVoteRecord cvr : new_cvrs) {
-      new_cvr_ids.add(cvr.id());
-    }
-
-    // the unique IDs of the CVRs to audit
-    final Set<Long> unique_new_cvr_ids = new HashSet<>(new_cvr_ids);
-
-    for (final Round round : the_cdb.rounds()) {
-      for (final Long cvr_id : round.ballotSequence()) {
-        if (unique_new_cvr_ids.contains(cvr_id)) {
-          unique_new_cvr_ids.remove(cvr_id);
-          sorted_deduplicated_new_cvrs.remove(Persistence.getByID(cvr_id,
-                                                                  CastVoteRecord.class));
-        }
-      }
-    }
-
-    if (sorted_deduplicated_new_cvrs.isEmpty()) {
+    if (roundDef.expected_count == 0) {
+      // report round not started
       return false;
     } else {
       Main.LOGGER.info("starting audit round " + (rounds.size() + 1) + " for county " +
           the_cdb.id() + " at audit sequence number " + start_index +
-          " with " + sorted_deduplicated_new_cvrs.size() + " ballots to audit");
-      final List<Long> ballot_ids_to_audit = new ArrayList<>();
-      for (final CastVoteRecord cvr : sorted_deduplicated_new_cvrs) {
-        ballot_ids_to_audit.add(cvr.id());
-      }
-      the_cdb.startRound(sorted_deduplicated_new_cvrs.size(),
-                         start_index + new_cvrs.size(),
+          " with " + roundDef.expected_count + " ballots to audit");
+
+      the_cdb.startRound(roundDef.expected_count,
+                         start_index + roundDef.expected_count,
                          start_index,
-                         generated_numbers,
-                         ballot_ids_to_audit,
-                         new_cvr_ids);
+                         roundDef.generated_numbers,
+                         roundDef.ballot_sequence,
+                         roundDef.audit_subsequence);
       updateRound(the_cdb, the_cdb.currentRound());
       updateCVRUnderAudit(the_cdb);
       return true;
@@ -527,96 +477,11 @@ public final class ComparisonAuditController {
    * @exception IllegalStateException if a round cannot be started from
    * estimates because there are no previous rounds or because there are no CVRs.
    */
-  public static boolean
-      startNewRoundFromEstimates(final CountyDashboard the_cdb,
-                                 final BigDecimal the_multiplier) {
-    final OptionalLong cvr_count =
-        CastVoteRecordQueries.countMatching(the_cdb.id(), RecordType.UPLOADED);
-    if (!cvr_count.isPresent()) {
-      throw new IllegalArgumentException("no cvrs");
-    }
-    final List<Round> rounds = the_cdb.rounds();
-    int start_index = 0;
-    if (rounds.isEmpty()) {
-      throw new IllegalArgumentException("no previous audit rounds");
-    } else {
-      final Round previous_round = rounds.get(rounds.size() - 1);
-      // we start the next round where the previous round actually ended
-      // in the audit sequence
-      start_index = previous_round.actualAuditedPrefixLength();
-    }
-    boolean result = false;
-    if (the_cdb.ballotsAudited() == cvr_count.getAsLong()) {
-      // if we've audited all the CVRs already, we're done
-      Main.LOGGER.info("all CVRs have been audited, not starting new round");
-    } else {
-      // use estimates based on current error rate to get length of round
-      // we keep doing this until we find a CVR to actually audit
-      final SortedSet<CastVoteRecord> sorted_deduplicated_new_cvrs =
-          new TreeSet<>(new CastVoteRecord.BallotOrderComparator());
-      final List<CastVoteRecord> new_cvrs = new ArrayList<>();
-      int expected_prefix_length = 0;
-      while (sorted_deduplicated_new_cvrs.isEmpty()) {
-        expected_prefix_length = computeEstimatedSamplesToAudit(the_cdb);
-        if (the_cdb.auditedPrefixLength() < expected_prefix_length) {
+  public static boolean startNewRound(final CountyDashboard the_cdb,
+                                      final BigDecimal the_multiplier) {
 
-          final List<CastVoteRecord> extra_cvrs =
-              getCVRsInAuditSequence(the_cdb.county(), start_index,
-                                     expected_prefix_length - 1);
-          new_cvrs.addAll(extra_cvrs);
-          Persistence.saveOrUpdate(the_cdb);
-          sorted_deduplicated_new_cvrs.addAll(new_cvrs);
-
-          final Set<Long> unique_new_cvr_ids = new HashSet<>();
-          for (final CastVoteRecord cvr : sorted_deduplicated_new_cvrs) {
-            unique_new_cvr_ids.add(cvr.id());
-          }
-          for (final Round round : the_cdb.rounds()) {
-            for (final Long cvr_id : round.ballotSequence()) {
-              if (unique_new_cvr_ids.contains(cvr_id)) {
-                unique_new_cvr_ids.remove(cvr_id);
-                sorted_deduplicated_new_cvrs.remove(Persistence.getByID(cvr_id,
-                                                                        CastVoteRecord.class));
-              }
-            }
-          }
-        }
-      }
-
-      final CountyService county_service = new CountyService(the_cdb.county());
-      // Random numbers based on the number of ballots to audit, in the range
-      // [1, max_ballot_count_to_audit]
-      final List<Long> generated_numbers =
-          county_service.getRandomNumbers(start_index,
-                                          expected_prefix_length - 1);
-
-      final int round_length = sorted_deduplicated_new_cvrs.size();
-
-      // the ids of the CVRs to audit, in audit sequence order
-      final List<Long> new_cvr_ids = new ArrayList<>();
-      for (final CastVoteRecord cvr : new_cvrs) {
-        new_cvr_ids.add(cvr.id());
-      }
-
-      // the ids of the CVRs to audit, deduplicated, in ballot order
-      final List<Long> ballot_ids_to_audit = new ArrayList<>();
-      for (final CastVoteRecord cvr : sorted_deduplicated_new_cvrs) {
-        ballot_ids_to_audit.add(cvr.id());
-      }
-      Main.LOGGER.info("starting audit round " + (rounds.size() + 1) + " for county " +
-          the_cdb.id() + " at audit sequence number " + start_index +
-          " with " + round_length + " ballots to audit");
-      the_cdb.startRound(round_length,
-                         expected_prefix_length,
-                         start_index,
-                         generated_numbers,
-                         ballot_ids_to_audit,
-                         new_cvr_ids);
-      updateRound(the_cdb, the_cdb.currentRound());
-      updateCVRUnderAudit(the_cdb);
-      result = true;
-    }
-    return result;
+    final int expected_prefix_length = computeEstimatedSamplesToAudit(the_cdb);
+    return startNewRound(the_cdb, the_multiplier, expected_prefix_length);
   }
 
   /**

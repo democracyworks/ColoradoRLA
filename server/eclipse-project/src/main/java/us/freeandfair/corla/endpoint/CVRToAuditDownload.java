@@ -35,7 +35,6 @@ import spark.Response;
 
 import us.freeandfair.corla.Main;
 import us.freeandfair.corla.controller.BallotSelection;
-import us.freeandfair.corla.controller.CVRSelection;
 import us.freeandfair.corla.json.CVRToAuditResponse;
 import us.freeandfair.corla.model.County;
 import us.freeandfair.corla.model.CountyDashboard;
@@ -181,32 +180,9 @@ public class CVRToAuditDownload extends AbstractEndpoint {
     
     try {
       // get the request parameters
-      final String start_param = the_request.queryParams(START);
-      final String ballot_count_param = the_request.queryParams(BALLOT_COUNT);
-      final String duplicates_param = the_request.queryParams(INCLUDE_DUPLICATES);
-      final String audited_param = the_request.queryParams(INCLUDE_AUDITED);
       final String round_param = the_request.queryParams(ROUND);
 
-      int ballot_count = 0;
-      if (ballot_count_param != null) {
-        ballot_count = Integer.parseInt(ballot_count_param);
-      }
-      int index = 0;
-      if (start_param != null) {
-        index = Integer.parseInt(start_param);
-      }
-      final boolean duplicates;
-      if (duplicates_param == null) {
-        duplicates = false;
-      } else {
-        duplicates = true;
-      }
-      final boolean audited;
-      if (audited_param == null) {
-        audited = false;
-      } else {
-        audited = true;
-      }
+
       // get other things we need
       final CountyDashboard cdb = Persistence.getByID(county.id(), CountyDashboard.class);
       List<CVRToAuditResponse> response_list;
@@ -224,25 +200,9 @@ public class CVRToAuditDownload extends AbstractEndpoint {
         }
       }
 
-      // feature flag - for emergencies only - TODO: remove after confidence achieved
-      final boolean use_ballot_manifest_selection =
-          Main.getBooleanProperty("feature_flag.use_ballot_manifest_selection", true);
+      final Round the_round = cdb.rounds().get(round.getAsInt() - 1);
 
-      if (use_ballot_manifest_selection) {
-        final Round the_round = cdb.rounds().get(round.getAsInt() - 1);
-        // replace the var
-        response_list = BallotSelection.selectBallots(the_round.generatedNumbers(),
-                                                      county.id());
-      } else {
-        // replace the var
-        response_list = CVRSelection.selectCVRs(cdb,
-                                                round,
-                                                audited,
-                                                duplicates,
-                                                ballot_count,
-                                                index);
-      }
-
+      response_list = BallotSelection.prepareBallotSequence(the_round.ballotSequence());
       // generate a CSV file from the response list
       the_response.type("text/csv");
       
@@ -251,16 +211,8 @@ public class CVRToAuditDownload extends AbstractEndpoint {
       final StringBuilder sb = new StringBuilder(32);
       sb.append("ballot-list-");
       sb.append(county.name().toLowerCase(Locale.getDefault()).replace(" ", "_"));
-      sb.append('-');
-      if (round.isPresent()) {
-        sb.append("round-");
-        sb.append(round.getAsInt());
-      } else {
-        sb.append("start-");
-        sb.append(index);
-        sb.append("-count-");
-        sb.append(ballot_count);
-      }
+      sb.append("-round-");
+      sb.append(round.getAsInt());
       sb.append(".csv");
       
       try {

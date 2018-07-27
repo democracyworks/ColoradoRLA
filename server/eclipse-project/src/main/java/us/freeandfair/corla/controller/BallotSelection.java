@@ -3,11 +3,14 @@
  **/
 package us.freeandfair.corla.controller;
 
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+
 
 import us.freeandfair.corla.json.CVRToAuditResponse;
 import us.freeandfair.corla.json.CVRToAuditResponse.BallotOrderComparator;
@@ -15,6 +18,7 @@ import us.freeandfair.corla.model.BallotManifestInfo;
 import us.freeandfair.corla.model.CastVoteRecord;
 import us.freeandfair.corla.query.BallotManifestInfoQueries;
 import us.freeandfair.corla.query.CastVoteRecordQueries;
+import us.freeandfair.corla.util.SuppressFBWarnings;
 
 public final class BallotSelection {
 
@@ -50,12 +54,8 @@ public final class BallotSelection {
     // this is what gets added to and returned
     final List<CVRToAuditResponse> a_list = new LinkedList<CVRToAuditResponse>();
 
-    // dedup! are we supposed to be doing this? probably(?):
-    // ComparisonAuditController does!
-    final List<Long> deduped = dedup(rands);
-
     Integer audit_sequence_number = 0;
-    for (final Long rand: deduped) {
+    for (final Long rand: rands) {
       // could we get them all at once? I'm not sure
       final Optional<BallotManifestInfo> bmiMaybe = queryBMI.apply(rand);
       CastVoteRecord cvr;
@@ -70,7 +70,7 @@ public final class BallotSelection {
                                             bmi.ballotPosition(rand));
         if (cvr == null) {
           // TODO: create a discrepancy when this happens
-          cvr = notFoundCVR();
+          cvr = phantomRecord();
         }
         a_list.add(toResponse(audit_sequence_number, rand, bmi, cvr));
       } else {
@@ -81,17 +81,79 @@ public final class BallotSelection {
 
       audit_sequence_number++;
     }
-    a_list.sort(new BallotOrderComparator());
     return a_list;
   }
 
+  /** turn round.ballotSequence() into a list of ballots for the user to audit **/
+  public static List<CVRToAuditResponse>
+      prepareBallotSequence(final List<Long> ballot_sequence) {
+    // this is what gets added to and returned
+    final List<CVRToAuditResponse> a_list = new LinkedList<CVRToAuditResponse>();
+
+    final List<CastVoteRecord> cvrs = CastVoteRecordQueries.get(ballot_sequence);
+    for (final CastVoteRecord cvr: cvrs) {
+      // cvrNumber is the sequential number in the cvr csv export
+      // it is equal to one of the generated_numbers
+      final BallotManifestInfo bmi = BallotManifestInfoQueries.
+          holdingSequenceNumber(Long.valueOf(cvr.cvrNumber())).get();
+
+      a_list.add(toResponse(0, // auditSequenceNumber seems to be unused
+                            Long.valueOf(cvr.cvrNumber()),
+                            bmi,
+                            cvr));
+    }
+
+    // query does not keep correct order
+    return sort(a_list);
+  }
+
+
+  /** sort without mutation **/
+  public static List<CVRToAuditResponse> sort(final List<CVRToAuditResponse> cars) {
+    final List<CVRToAuditResponse> clone = new LinkedList<CVRToAuditResponse>(cars);
+    clone.sort(new BallotOrderComparator());
+    return clone;
+  }
+
+  /** sort without mutation **/
+  public static List<Long> sortNumbers(final List<Long> rands) {
+    final List<Long> clone = new LinkedList<Long>(rands);
+    Collections.sort(clone);
+    return clone;
+  }
+
+  /** subtract lists without mutation **/
+  public static List<Long> excludeNumbers(final List<Long> rands,
+                                          final List<Long> exclusions) {
+    final List<Long> clone = new LinkedList<Long>(rands);
+    clone.removeAll(exclusions);
+    return clone;
+  }
   /** remove duplicates **/
-  public static List<Long> dedup(final List<Long> rands) {
+  public static List<CVRToAuditResponse> dedup(final List<CVRToAuditResponse> cars) {
+    return new LinkedList<CVRToAuditResponse>(new LinkedHashSet<CVRToAuditResponse>(cars));
+  }
+
+  /** remove duplicates **/
+  public static List<Long> dedupNumbers(final List<Long> rands) {
     return new LinkedList<Long>(new LinkedHashSet<Long>(rands));
   }
 
+  /** the cvr ids only **/
+  public static List<Long> cvrIDs(final List<CVRToAuditResponse> cars) {
+    return cars.stream().map(car -> car.dbID()).collect(Collectors.toList());
+  }
+
+  /** filter by cvr.auditFlag **/
+  public static List<CVRToAuditResponse> unAudited(final List<CVRToAuditResponse> cars) {
+    return cars.stream()
+        .filter(car -> { return !car.audited(); })
+        .collect(Collectors.toList());
+  }
+
+
   /** PHANTOM_RECORD conspiracy theory time **/
-  public static CastVoteRecord notFoundCVR() {
+  public static CastVoteRecord phantomRecord() {
     final CastVoteRecord cvr = new CastVoteRecord(CastVoteRecord.RecordType.PHANTOM_RECORD,
                                                   null,
                                                   0L,
@@ -101,7 +163,7 @@ public final class BallotSelection {
                                                   "",
                                                   0,
                                                   "",
-                                                  "NOT FOUND",
+                                                  "PHANTOM RECORD",
                                                   null);
     // TODO prevent the client from requesting info about this cvr
     cvr.setID(0L);
@@ -128,6 +190,28 @@ public final class BallotSelection {
                                   cvr.auditFlag());
   }
 
+  /** reusable computations  **/
+  public static RoundDef defineRound(final List<Long> rands,
+                                     final Long countyId) {
+    return defineRound(rands, countyId, new LinkedList<Long>());
+  }
+
+  /** reusable computations  **/
+  public static RoundDef defineRound(final List<Long> rands,
+                                     final Long countyId,
+                                     final List<Long> exclusions) {
+    List<CVRToAuditResponse> cars = selectBallots(rands,countyId);
+    final RoundDef rd = new RoundDef();
+    rd.generated_numbers = rands;
+    rd.audit_subsequence = cvrIDs(cars);
+    // this is the prepared list for the auditors to use ->
+    // sorted,deduped and excluding other rounds
+    rd.ballot_sequence = dedupNumbers(excludeNumbers(cvrIDs(sort(cars)),
+                                                     exclusions));
+    rd.expected_count = rd.ballot_sequence.size();
+    return rd;
+  }
+
   /**
    * this is bad, it could be one of two things:
    * - a random number was generated outside of the number of (theoretical) ballots
@@ -152,5 +236,17 @@ public final class BallotSelection {
                          Integer scanner_id,
                          String batch_id,
                          Long position);
+  }
+
+
+  /** things the round needs to operate **/
+  @SuppressWarnings({"all"})
+  @SuppressFBWarnings(value = "UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR",
+                      justification = "Data Transfer Object; POJO")
+  public static class RoundDef {
+    Integer expected_count;
+    List<Long> generated_numbers;
+    List<Long> ballot_sequence;
+    List<Long> audit_subsequence;
   }
 }
