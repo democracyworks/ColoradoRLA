@@ -556,9 +556,9 @@ def upload_files(ac, s):
         ("../e-1/arapahoe-regent-3-clear-CVR_Export.csv",
                     "49bd5d56e6107ff6b7381a6f563121e3b1d5d967bba1c29e6ffe31583d646e6d"),
         ("../dominion-2017-CVR_Export_20170310104116.csv",
-                    "4e3844b0dabfcea64a499d65bc1cdc00d139cd5cdcaf502f20dd2beaa3d518d2"),
+                    "8eae05406ca282895aa6705f60a44715c873cd6bd2b7a76d3852ea73702def92"),
         ("../Denver2016Test/CVR_Export_20170804111144.csv",
-                    "1def4aa4c0e1421b4e5adcd4cc18a8d275f709bc07820a37e76e11a038195d02"),
+                    "99a848b6a8bb05912b1991437080763f04f5160bf738fd93a6481349e1f9a5f6"),
         ("../e-1/arapahoe-regent-3-clear-CVR_Export.csv",
                     "invalid hash"),
         ("../e-1/arapahoe-regent-3-clear-CVR_Export.csv",
@@ -626,9 +626,9 @@ def dos_init(ac):
     r = test_endpoint_json(ac, ac.state_s, "/update-audit-info",
                            { "election_type": "coordinated",
                              "election_date": "2017-11-09T02:00:00Z",
+                             "upload_file": [{"contents": open("../contest-names/canonical-contests.csv").read()}],
                              "public_meeting_date": "2017-11-19T02:00:00Z",
                              "risk_limit": ac.args.risk_limit } )
-
 def county_setup(ac, county_id):
 
     logging.debug("county setup for county_id %d" % county_id)
