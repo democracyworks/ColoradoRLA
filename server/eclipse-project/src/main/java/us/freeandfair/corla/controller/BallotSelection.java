@@ -94,16 +94,32 @@ public final class BallotSelection {
     return cvr;
   }
 
-  /** render cvrs using BallotManifestInfo **/
+  /**
+   * Joins provided CVRs to the ballot manifest.
+   *
+   * Produces a list of CVRToAuditResponse elements which represent the CVRs
+   * augmented with ballot manifest data.
+   *
+   * @return CVRs joind with ballot manifest data
+   */
   public static List<CVRToAuditResponse>
       toResponseList(final List<CastVoteRecord> cvrs) {
     return toResponseList(cvrs, BallotManifestInfoQueries::locationFor);
   }
 
-  /** render cvrs using BallotManifestInfo **/
+
+  /**
+   * Joins provided CVRs to the ballot manifest.
+   *
+   * Produces a list of CVRToAuditResponse elements which represent the CVRs
+   * augmented with ballot manifest data.
+   *
+   * Uses a passed-in BallotManifestInfo query.
+   *
+   * @return CVRs joind with ballot manifest data
+   */
   public static List<CVRToAuditResponse>
-      toResponseList(final List<CastVoteRecord> cvrs,
-                   final BMILOCQ bmiq) {
+      toResponseList(final List<CastVoteRecord> cvrs, final BMILOCQ bmiq) {
 
     final List<CVRToAuditResponse> responses = new LinkedList<CVRToAuditResponse>();
 
@@ -112,9 +128,7 @@ public final class BallotSelection {
       final BallotManifestInfo bmi =
           bmiMaybe(bmiq.apply(cvr), Long.valueOf(cvr.cvrNumber()));
 
-      responses.add(toResponse(i,
-                               bmi,
-                               cvr));
+      responses.add(toResponse(i, bmi, cvr));
       i++;
     }
     return responses;
