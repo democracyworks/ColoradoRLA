@@ -910,6 +910,7 @@ public final class ComparisonAuditController {
   private static void updateCVRUnderAudit(final CountyDashboard the_cdb) {
     // start from where we are in the current round
     final Round round = the_cdb.currentRound();
+    final Set<ComparisonAudit> audits = the_cdb.comparisonAudits();
     if (round != null) {
       final Set<Long> checked_ids = new HashSet<>();
       int index = round.actualAuditedPrefixLength() - round.startAuditedPrefixLength();
@@ -923,6 +924,11 @@ public final class ComparisonAuditController {
           } else {
             final int audit_count = audit(the_cdb, cai, false);
             the_cdb.setAuditedSampleCount(the_cdb.auditedSampleCount() + audit_count);
+            for (ComparisonAudit a: audits) {
+              a.incAuditedPrefixLength();
+              a.incAuditedSamples();
+            }
+
           }
         }
         index = index + 1;

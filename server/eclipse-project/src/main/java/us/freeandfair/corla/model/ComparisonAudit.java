@@ -200,6 +200,26 @@ public class ComparisonAudit implements PersistentEntity {
   private Integer my_disagreement_count = 0;
 
   /**
+   * gets incremented
+   */
+  @Column(nullable = true) // true for migration
+  private Integer auditedPrefixLength = 0;
+
+  /**
+   * gets incremented
+   */
+  @Column(nullable = true) // true for migration
+  private BigDecimal auditedSamples = BigDecimal.ZERO;
+
+  /**
+   * gets incremented
+   */
+  @Column(nullable = true) // true for migration
+  private BigDecimal overstatements = BigDecimal.ZERO;
+
+
+
+  /**
    * A flag that indicates whether the optimistic ballots to audit
    * estimate needs to be recalculated.
    */
@@ -414,7 +434,12 @@ public class ComparisonAudit implements PersistentEntity {
    * replicate that view at a higher level.
    */
   public Integer auditedPrefixLength() {
-    return 0;
+    return this.auditedPrefixLength;
+  }
+
+  /** set by inc  **/
+  public void incAuditedPrefixLength() {
+    this.auditedPrefixLength = this.auditedPrefixLength + 1;
   }
 
   public BigDecimal auditedSamples() {
@@ -423,17 +448,33 @@ public class ComparisonAudit implements PersistentEntity {
     // many samples we've audited across all of the counties that
     // aprticipate.
 
-    // return BigDecimal.valueOf(my_dashboard.auditedSampleCount());
-    return BigDecimal.ZERO;
+    return this.auditedSamples;
   }
 
+  /** incAuditedSamples **/
+  public void incAuditedSamples() {
+    // FIXME collect the number of 1&2 vote overstatements across
+    // participating counties.
+
+    this.auditedSamples = this.auditedSamples.add(new BigDecimal(1));
+  }
+
+  /**  number of both one and two overstatements summed **/
   public BigDecimal overstatements() {
     // FIXME collect the number of 1&2 vote overstatements across
     // participating counties.
 
-    // return BigDecimal.valueOf(my_one_vote_over_count + my_two_vote_over_count);
-    return BigDecimal.ZERO;
+    return this.overstatements;
   }
+
+  /** incOverStatements **/
+  public void incOverStatements() {
+    // FIXME collect the number of 1&2 vote overstatements across
+    // participating counties.
+
+    this.overstatements = this.overstatements.add(new BigDecimal(1));
+  }
+
 
   /**
    * Recalculates the overall numbers of ballots to audit.
