@@ -809,6 +809,7 @@ public class CountyDashboard implements PersistentEntity {
    * @return the optimistic number of samples to audit.
    */
   public Integer optimisticSamplesToAudit() {
+    // FIXME here is where we left off...
     return my_optimistic_samples_to_audit;
   }
 

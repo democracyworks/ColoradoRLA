@@ -355,15 +355,13 @@ public final class ComparisonAuditController {
                                      cr.getDilutedMargin(),
                                      Audit.GAMMA,
                                      cr.getAuditReason());
-          // TODO:
-          // cr.getContestRands());
         })
       .map(Persistence::persist)
       .collect(Collectors.toSet());
   }
 
   public static boolean startFirstRound(final CountyDashboard cdb,
-                                        final List<ComparisonAudit> audits,
+                                        final Set<ComparisonAudit> audits,
                                         final List<Integer> subsequence) {
     Set<String> drivingContestNames = audits.stream()
       .filter(ca -> ca.contestResult().getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
@@ -375,6 +373,7 @@ public final class ComparisonAuditController {
     cdb.setDrivingContestNames(drivingContestNames);
     cdb.setEstimatedSamplesToAudit(subsequence.size());
     cdb.setOptimisticSamplesToAudit(subsequence.size());
+    cdb.setComparisonAudits(audits);
 
     final List<CastVoteRecord> castVoteRecords =
       getCVRsForSequenceNumbers(cdb.county(), subsequence);
@@ -613,6 +612,7 @@ public final class ComparisonAuditController {
         final int new_count = audit(cdb, info, true);
         cdb.addAuditedBallot();
         cdb.setAuditedSampleCount(cdb.auditedSampleCount() + new_count);
+        // cdb.comparisonAudits.forEach( ca -> ca.incAuditedSamples());
       } else {
         // the record has been audited before, so we need to "unaudit" it
         final int former_count = unaudit(cdb, info);
@@ -797,6 +797,7 @@ public final class ComparisonAuditController {
 
     final int audit_count = auditInfo.multiplicity() - auditInfo.counted();
     for (final ComparisonAudit ca : cdb.comparisonAudits()) {
+      // FIXME: check cvrid for presence in ballotSequence
       final OptionalInt discrepancy = ca.computeDiscrepancy(cvr_under_audit, audit_cvr);
 
       if (discrepancy.isPresent()) {

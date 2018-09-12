@@ -77,18 +77,18 @@ public class ComparisonAudit implements PersistentEntity {
              inverseJoinColumns = { @JoinColumn(name = "county_dashboard_id") })
   private final Set<CountyDashboard> countyDashboards = new HashSet<>();
 
-  /**
-   * set the set of counties
-   */
-  public boolean addCountyDashboards(final Set<CountyDashboard> cs) {
-    return this.countyDashboards.addAll(cs);
-  }
+  // /**
+  //  * set the set of counties
+  //  */
+  // public boolean addCountyDashboards(final Set<CountyDashboard> cs) {
+  //   return this.countyDashboards.addAll(cs);
+  // }
 
   /**
    * @return the counties related to this contestresult.
    */
-  public Set<CountyDashboard> getCountyDashboards() {
-    return Collections.unmodifiableSet(this.countyDashboards);
+  public Set<County> getCounties() {
+    return Collections.unmodifiableSet(this.contestResult().getCounties());
   }
 
   /**
@@ -118,14 +118,6 @@ public class ComparisonAudit implements PersistentEntity {
   @Column(updatable = false, nullable = false)
   @Enumerated(EnumType.STRING)
   private AuditReason my_audit_reason;
-
-  /**
-   * The sequence of CVR IDs for ballots to audit for one contest and all
-   * counties
-   */
-  @Column(name = "contest_ballot_sequence", columnDefinition = "text")
-  @Convert(converter = LongListConverter.class)
-  private List<Long> contest_ballot_sequence;
 
   /**
    * The status of this audit.
@@ -297,6 +289,9 @@ public class ComparisonAudit implements PersistentEntity {
     this.diluted_margin = dilutedMargin;
     my_gamma = gamma;
     my_audit_reason = auditReason;
+    // compute initial sample size
+    optimisticSamplesToAudit();
+    estimatedSamplesToAudit();
 
     if (contestResult.getDilutedMargin().equals(BigDecimal.ZERO)) {
       // the diluted margin is 0, so this contest is not auditable
@@ -372,8 +367,8 @@ public class ComparisonAudit implements PersistentEntity {
 
   /** see if the county is participating in this audit(contest) **/
   public boolean isForCounty(final Long countyId) {
-    Optional<CountyDashboard> result = getCountyDashboards().stream()
-      .filter(cdb -> cdb.county().id().equals(countyId))
+    Optional<County> result = getCounties().stream()
+      .filter(c -> c.id().equals(countyId))
       .findFirst();
     return result.isPresent();
   }
@@ -496,6 +491,10 @@ public class ComparisonAudit implements PersistentEntity {
     this.overstatements = this.overstatements.add(new BigDecimal(1));
   }
 
+  /** getter **/
+  public Integer getAuditedSampleCount() {
+    return this.my_audited_sample_count;
+  }
 
   /**
    * Recalculates the overall numbers of ballots to audit.
@@ -994,5 +993,13 @@ public class ComparisonAudit implements PersistentEntity {
     }
 
     return result;
+  }
+
+  public String toString() {
+    return  String.format("[ComparisonAudit %s auditedSampleCount=%d rands=%s status=%s]",
+                          this.contestResult().getContestName(),
+                          this.getAuditedSampleCount(),
+                          this.contestResult().getContestRands(),
+                          my_audit_status);
   }
 }

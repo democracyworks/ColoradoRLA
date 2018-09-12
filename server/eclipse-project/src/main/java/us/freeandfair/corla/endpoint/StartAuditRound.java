@@ -241,6 +241,7 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     Set<ComparisonAudit> comparisonAudits =
       ComparisonAuditController.createAudits(riskLimit, persistedContestResults);
 
+    LOGGER.info("comparisonAudits = " + comparisonAudits);
 
 
     // Nothing in this try-block should know about HTTP requests / responses
@@ -260,10 +261,12 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
           } else {
             // find the initial window
             final List<Integer> subsequence = auditSegments.get(cdb.county().id());
-            final List<ComparisonAudit> auditsForCounty = comparisonAudits.stream()
+            final Set<ComparisonAudit> auditsForCounty = comparisonAudits.stream()
               .filter(ca -> ca.isForCounty(cdb.county().id()))
-              .collect(Collectors.toList());
+              .collect(Collectors.toSet());
 
+            LOGGER.info("county = " + cdb.county() + " auditsForCounty = " + auditsForCounty);
+            LOGGER.info("county = " + cdb.county() + " subsequence = " + subsequence);
             final boolean started =
               ComparisonAuditController.startFirstRound(cdb,
                                                         auditsForCounty,
