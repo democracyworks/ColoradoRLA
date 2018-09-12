@@ -612,7 +612,6 @@ public final class ComparisonAuditController {
         final int new_count = audit(cdb, info, true);
         cdb.addAuditedBallot();
         cdb.setAuditedSampleCount(cdb.auditedSampleCount() + new_count);
-        // cdb.comparisonAudits.forEach( ca -> ca.incAuditedSamples());
       } else {
         // the record has been audited before, so we need to "unaudit" it
         final int former_count = unaudit(cdb, info);
