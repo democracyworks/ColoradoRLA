@@ -364,21 +364,38 @@ public final class ComparisonAuditController {
 
   public static boolean startFirstRound(final CountyDashboard cdb,
                                         final List<ComparisonAudit> audits,
-                                        // final List<Long> ballotSequence,
-                                        final List<Integer> auditSubsequence) {
-    // cdb.setAuditedPrefixLength(0);
-    // cdb.setAuditedSampleCount(0);
-    // cdb.setDrivingContestNames(drivingContests);
-    // cdb.setEstimatedSamplesToAudit(auditSubsequence.size());
-    // cdb.setOptimisticSamplesToAudit(auditSubsequence.size());
+                                        final List<Integer> subsequence) {
+    Set<String> drivingContestNames = audits.stream()
+      .filter(ca -> ca.contestResult().getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
+      .map(ca -> ca.contestResult().getContestName())
+      .collect(Collectors.toSet());
 
-    // cdb.startRound(ballotSequence.size(),
-    //                auditSubsequence.size(),
-    //                0,
-    //                ballotSequence,
-    //                auditSubsequence);
-    // updateRound(cdb, cdb.currentRound());
-    // updateCVRUnderAudit(cdb);
+    cdb.setAuditedPrefixLength(0);
+    cdb.setAuditedSampleCount(0);
+    cdb.setDrivingContestNames(drivingContestNames);
+    cdb.setEstimatedSamplesToAudit(subsequence.size());
+    cdb.setOptimisticSamplesToAudit(subsequence.size());
+
+    final List<CastVoteRecord> castVoteRecords =
+      getCVRsForSequenceNumbers(cdb.county(), subsequence);
+
+    final List<Long> auditSubsequence = castVoteRecords.stream()
+      .map(cvr -> cvr.id())
+      .collect(Collectors.toList());
+
+    final List<Long> ballotSequence = castVoteRecords.stream()
+      .distinct()
+      .sorted(new CastVoteRecord.BallotOrderComparator())
+      .map(cvr -> cvr.id())
+      .collect(Collectors.toList());
+
+    cdb.startRound(ballotSequence.size(),
+                   auditSubsequence.size(),
+                   0,
+                   ballotSequence,
+                   auditSubsequence);
+    updateRound(cdb, cdb.currentRound());
+    updateCVRUnderAudit(cdb);
 
     // if the round was started there will be ballots to count
     return cdb.ballotsRemainingInCurrentRound() > 0;
