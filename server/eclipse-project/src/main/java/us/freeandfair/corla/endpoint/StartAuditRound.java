@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import javax.persistence.PersistenceException;
@@ -44,6 +45,7 @@ import us.freeandfair.corla.controller.ContestCounter;
 import us.freeandfair.corla.json.SubmittedAuditRoundStart;
 import us.freeandfair.corla.math.Audit;
 import us.freeandfair.corla.model.AuditReason;
+import us.freeandfair.corla.model.ComparisonAudit;
 import us.freeandfair.corla.model.Contest;
 import us.freeandfair.corla.model.ContestResult;
 import us.freeandfair.corla.model.ContestToAudit;
@@ -205,7 +207,7 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     }
 
     return segments.stream()
-      .reduce(new HashMap<Long,List<Integer>>(),
+      .reduce(new TreeMap<Long,List<Integer>>(), // to keep counties in order
               (a, seg) -> BallotSelection.combineSegment(a, seg));
   }
 
@@ -236,7 +238,11 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
       .collect(Collectors.toList());
     final Map<Long, List<Integer>> auditSegments = combineSegments(seed, riskLimit, targetedContestResults);
 
-    // FIXME extract-fn: updateDashboards(auditSegments);
+    Set<ComparisonAudit> comparisonAudits =
+      ComparisonAuditController.createAudits(riskLimit, persistedContestResults);
+
+
+
     // Nothing in this try-block should know about HTTP requests / responses
     // update every county dashboard with a list of ballots to audit
     try {
@@ -254,14 +260,14 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
           } else {
             // find the initial window
             final List<Integer> subsequence = auditSegments.get(cdb.county().id());
+            final List<ComparisonAudit> auditsForCounty = comparisonAudits.stream()
+              .filter(ca -> ca.isForCounty(cdb.county().id()))
+              .collect(Collectors.toList());
 
             final boolean started =
-              ComparisonAuditController
-              .initializeAuditData(targetedContestNames,
-                                   cdb,
-                                   riskLimit,
-                                   persistedContestResults,
-                                   subsequence);
+              ComparisonAuditController.startFirstRound(cdb,
+                                                        auditsForCounty,
+                                                        subsequence);
 
             if (started) {
               LOGGER.info(COUNTY + cdb.id() + " estimated to audit " +

@@ -47,6 +47,9 @@ public final class BallotSelection {
 
     final List<Integer> globalRands = gen.getRandomNumbers(minIndex, maxIndex);
 
+    //  to calculate auditPrefixLength somehow (progress)
+    contestResult.setContestRands(globalRands);
+
     LOGGER.info(String.format("Building segments for contest:"
                               + " [contestResult=%s, seed=%s, globalTotal=%d,"
                               + " minIndex=%d, maxIndex=%d, samples=%d]",

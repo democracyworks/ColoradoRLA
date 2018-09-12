@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -25,6 +26,7 @@ import java.util.Set;
 import javax.persistence.Cacheable;
 import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.Convert;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -45,7 +47,9 @@ import javax.persistence.Version;
 import us.freeandfair.corla.math.Audit;
 import us.freeandfair.corla.model.CVRContestInfo.ConsensusValue;
 import us.freeandfair.corla.model.CastVoteRecord.RecordType;
+import us.freeandfair.corla.persistence.LongListConverter;
 import us.freeandfair.corla.persistence.PersistentEntity;
+
 
 /**
  * A class representing the state of a single audited contest for
@@ -114,6 +118,15 @@ public class ComparisonAudit implements PersistentEntity {
   @Column(updatable = false, nullable = false)
   @Enumerated(EnumType.STRING)
   private AuditReason my_audit_reason;
+
+  /**
+   * The sequence of CVR IDs for ballots to audit for one contest and all
+   * counties
+   */
+  @Column(nullable = false, updatable = false,
+          name = "contest_ballot_sequence", columnDefinition = "text")
+          @Convert(converter = LongListConverter.class)
+          private List<Long> contest_ballot_sequence;
 
   /**
    * The status of this audit.
@@ -278,6 +291,7 @@ public class ComparisonAudit implements PersistentEntity {
                          final BigDecimal dilutedMargin,
                          final BigDecimal gamma,
                          final AuditReason auditReason) {
+
     super();
     my_contest_result = contestResult;
     my_risk_limit = riskLimit;
@@ -355,6 +369,14 @@ public class ComparisonAudit implements PersistentEntity {
    */
   public AuditStatus auditStatus() {
     return my_audit_status;
+  }
+
+  /** see if the county is participating in this audit(contest) **/
+  public boolean isForCounty(final Long countyId) {
+    Optional<CountyDashboard> result = getCountyDashboards().stream()
+      .filter(cdb -> cdb.county().id().equals(countyId))
+      .findFirst();
+    return result.isPresent();
   }
 
   /**

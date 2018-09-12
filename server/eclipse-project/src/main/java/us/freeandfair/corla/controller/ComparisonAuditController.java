@@ -345,70 +345,40 @@ public final class ComparisonAuditController {
    * an audit round might not be started if there are no driving contests in the
    * county, or if the county needs to audit 0 ballots to meet the risk limit.
    */
-  public static boolean initializeAuditData(final Set<String> targetedContests,
-                                            final CountyDashboard cdb,
-                                            final BigDecimal riskLimit,
-                                            final List<ContestResult> contestResults,
-                                            final List<Integer> subsequence) {
-    final Set<ComparisonAudit> comparisonAudits = new HashSet<>();
-    // we'll use this to copy dosdb.targetedContests to cdb.drivingContests
-    final Set<String> drivingContests = new HashSet<>();
+  public static Set<ComparisonAudit>
+    createAudits(final BigDecimal riskLimit,
+                 final List<ContestResult> contestResults) {
+    return contestResults.stream()
+      .map(cr -> {
+          return new ComparisonAudit(cr,
+                                     riskLimit,
+                                     cr.getDilutedMargin(),
+                                     Audit.GAMMA,
+                                     cr.getAuditReason());
+          // TODO:
+          // cr.getContestRands());
+        })
+      .map(Persistence::persist)
+      .collect(Collectors.toSet());
+  }
 
-    for (final ContestResult cr : contestResults) {
-      final Contest contest = cr.contestFor(cdb.county());
+  public static boolean startFirstRound(final CountyDashboard cdb,
+                                        final List<ComparisonAudit> audits,
+                                        // final List<Long> ballotSequence,
+                                        final List<Integer> auditSubsequence) {
+    // cdb.setAuditedPrefixLength(0);
+    // cdb.setAuditedSampleCount(0);
+    // cdb.setDrivingContestNames(drivingContests);
+    // cdb.setEstimatedSamplesToAudit(auditSubsequence.size());
+    // cdb.setOptimisticSamplesToAudit(auditSubsequence.size());
 
-      if (contest == null) {
-        LOGGER.warn("could not find contest for county: " + cdb.county().id());
-        continue;
-      }
-
-      // storing numbers for later calculations
-      final ComparisonAudit audit =
-        new ComparisonAudit(cr, riskLimit, cr.getDilutedMargin(),
-                            Audit.GAMMA, cr.getAuditReason());
-
-      LOGGER.debug("estimate for contest " + cr.getContestName() +
-                   ", diluted margin: " + cr.getDilutedMargin());
-
-      Persistence.save(audit);
-      comparisonAudits.add(audit);
-
-      if (targetedContests.contains(cr.getContestName())) {
-        LOGGER.debug(String.format("Contest [%s] is targeted, adding to drivingContests.",
-                                   cr.getContestName()));
-        drivingContests.add(cr.getContestName());
-      } else {
-        LOGGER.debug(String.format("Contest [%s] is not targeted.", cr.getContestName()));
-      }
-    }
-
-    final List<CastVoteRecord> castVoteRecords =
-      getCVRsForSequenceNumbers(cdb.county(), subsequence);
-
-    final List<Long> auditSubsequence = castVoteRecords.stream()
-      .map(cvr -> cvr.id())
-      .collect(Collectors.toList());
-
-    final List<Long> ballotSequence = castVoteRecords.stream()
-      .distinct()
-      .sorted(new CastVoteRecord.BallotOrderComparator())
-      .map(cvr -> cvr.id())
-      .collect(Collectors.toList());
-
-    cdb.setAuditedPrefixLength(0);
-    cdb.setAuditedSampleCount(0);
-    cdb.setComparisonAudits(comparisonAudits);
-    cdb.setDrivingContestNames(drivingContests);
-    cdb.setEstimatedSamplesToAudit(subsequence.size());
-    cdb.setOptimisticSamplesToAudit(subsequence.size());
-
-    cdb.startRound(ballotSequence.size(),
-                   auditSubsequence.size(),
-                   0,
-                   ballotSequence,
-                   auditSubsequence);
-    updateRound(cdb, cdb.currentRound());
-    updateCVRUnderAudit(cdb);
+    // cdb.startRound(ballotSequence.size(),
+    //                auditSubsequence.size(),
+    //                0,
+    //                ballotSequence,
+    //                auditSubsequence);
+    // updateRound(cdb, cdb.currentRound());
+    // updateCVRUnderAudit(cdb);
 
     // if the round was started there will be ballots to count
     return cdb.ballotsRemainingInCurrentRound() > 0;
@@ -924,11 +894,6 @@ public final class ComparisonAuditController {
           } else {
             final int audit_count = audit(the_cdb, cai, false);
             the_cdb.setAuditedSampleCount(the_cdb.auditedSampleCount() + audit_count);
-            for (ComparisonAudit a: audits) {
-              a.incAuditedPrefixLength();
-              a.incAuditedSamples();
-            }
-
           }
         }
         index = index + 1;
