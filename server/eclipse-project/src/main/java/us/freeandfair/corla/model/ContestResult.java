@@ -32,7 +32,7 @@ import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import javax.persistence.Version;
 
-import us.freeandfair.corla.persistence.LongListConverter;
+import us.freeandfair.corla.persistence.IntegerListConverter;
 import us.freeandfair.corla.persistence.PersistentEntity;
 import us.freeandfair.corla.persistence.StringSetConverter;
 
@@ -157,13 +157,12 @@ public class ContestResult implements PersistentEntity, Serializable {
   private AuditReason auditReason;
 
  /**
-   * The sequence of CVR IDs for ballots to audit in this round,
-   * in the order they are to be presented.
+   * The sequence of random sample numbers for this contest in the order
+   * they are to be presented.
    */
-  @Column(nullable = false, updatable = false,
-          name = "contest_rands", columnDefinition = "text")
-  @Convert(converter = LongListConverter.class)
-  private List<Long> contestRands;
+  @Column(name = "contest_rands", columnDefinition = "text")
+  @Convert(converter = IntegerListConverter.class)
+  private List<Integer> contestRands;
 
 
   /**
@@ -259,11 +258,11 @@ public class ContestResult implements PersistentEntity, Serializable {
 
 
   /** store generated random numbers for the contest **/
-  public void setContestRands (List<Long> contestRands) {
+  public void setContestRands (List<Integer> contestRands) {
     this.contestRands = contestRands;
   }
 
-  public List<Long> getContestRands() {
+  public List<Integer> getContestRands() {
     return this.contestRands;
   }
 

@@ -123,10 +123,9 @@ public class ComparisonAudit implements PersistentEntity {
    * The sequence of CVR IDs for ballots to audit for one contest and all
    * counties
    */
-  @Column(nullable = false, updatable = false,
-          name = "contest_ballot_sequence", columnDefinition = "text")
-          @Convert(converter = LongListConverter.class)
-          private List<Long> contest_ballot_sequence;
+  @Column(name = "contest_ballot_sequence", columnDefinition = "text")
+  @Convert(converter = LongListConverter.class)
+  private List<Long> contest_ballot_sequence;
 
   /**
    * The status of this audit.
