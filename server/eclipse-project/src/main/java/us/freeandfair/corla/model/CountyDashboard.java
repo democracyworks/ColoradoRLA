@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Comparator;
 
@@ -799,10 +800,17 @@ public class CountyDashboard implements PersistentEntity {
   public Integer estimatedSamplesToAudit() {
     // return my_estimated_samples_to_audit;
     // NOTE: there could be race conditions between audit boards across counties
-    return comparisonAudits().stream()
+    Optional<Integer> maybe = comparisonAudits().stream()
+      .filter(ca -> ca.auditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
       .map(ca -> ca.estimatedSamplesToAudit())
-      .max(Comparator.naturalOrder())
-      .get();
+      .max(Comparator.naturalOrder());
+    // NOTE: we may be asking for this when we don't need to; when there are no
+    // audits setup yet
+    if (maybe.isPresent()) {
+      return maybe.get();
+    } else {
+      return 0;
+    }
   }
 
   /**

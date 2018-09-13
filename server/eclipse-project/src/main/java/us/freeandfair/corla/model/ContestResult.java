@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -32,6 +33,9 @@ import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import javax.persistence.Version;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import us.freeandfair.corla.persistence.IntegerListConverter;
 import us.freeandfair.corla.persistence.LongListConverter;
 import us.freeandfair.corla.persistence.PersistentEntity;
@@ -51,6 +55,12 @@ import us.freeandfair.corla.persistence.StringSetConverter;
                           unique = true)})
 @SuppressWarnings({"PMD.ExcessiveImports"}) // you complain if we import x.y.z.*, so....
 public class ContestResult implements PersistentEntity, Serializable {
+
+  /**
+   * Class-wide logger
+   */
+  public static final Logger LOGGER =
+    LogManager.getLogger(ContestResult.class);
 
   /**
    * The "id" string.
@@ -157,20 +167,32 @@ public class ContestResult implements PersistentEntity, Serializable {
   @Column(name = "audit_reason")
   private AuditReason auditReason;
 
+
+  /** FIXME: this class is being used as a DTO right now **/
+  private transient Map<Long,List<Integer>> segments = new HashMap<>();
+
+  public void setSegments(Map<Long,List<Integer>> segments) {
+    this.segments = segments;
+  }
+
+  public Map<Long,List<Integer>> getSegments() {
+    return this.segments;
+  }
+
  /**
    * The sequence of random sample numbers for this contest in the order
    * they are to be presented.
    */
   @Column(name = "contest_rands", columnDefinition = "text")
   @Convert(converter = IntegerListConverter.class)
-  private List<Integer> contestRands;
+  private List<Integer> contestRands = new ArrayList<Integer>();
 
   /**
    * The sequence of CastVoteRecord ids for this contest ordered by County id
    */
   @Column(name = "contest_cvr_ids", columnDefinition = "text")
   @Convert(converter = LongListConverter.class)
-  private List<Long> contestCVRIds;
+  private List<Long> contestCVRIds = new ArrayList<Long>();
 
 
   /**

@@ -202,8 +202,11 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
       final Integer startIndex = 0;
       final Integer endIndex = optimistic.intValue() - 1;
 
-      segments.add(BallotSelection.segmentsForContest(contestResult, seed,
-                                                      startIndex, endIndex));
+      // FIXME: use a DTO instead of mutating the contestResult
+      // warning: cr and contestResult are the same object
+      ContestResult cr = BallotSelection.segmentsForContest(contestResult, seed,
+                                                            startIndex, endIndex);
+      segments.add(cr.getSegments());
     }
 
     return segments.stream()

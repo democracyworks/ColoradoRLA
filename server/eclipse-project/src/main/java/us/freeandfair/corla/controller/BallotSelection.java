@@ -37,20 +37,21 @@ public final class BallotSelection {
   /**
    * create a random list of numbers and divide them into the appropriate
    * counties
+   * FIXME: setSegments on contestResult for now
    **/
-  public static Map<Long,List<Integer>> segmentsForContest(final ContestResult contestResult,
-                                                           final String seed,
-                                                           final Integer minIndex,
-                                                           final Integer maxIndex) {
+  public static ContestResult segmentsForContest(final ContestResult contestResult,
+                                                 final String seed,
+                                                 final Integer minIndex,
+                                                 final Integer maxIndex) {
     final int globalTotal = ballotsCast(contestResult.countyIDs()).intValue();
     final PseudoRandomNumberGenerator gen =
       new PseudoRandomNumberGenerator(seed, true, 1, globalTotal);
 
     final List<Integer> globalRands = gen.getRandomNumbers(minIndex, maxIndex);
 
-    Map<Long,List<Integer>> result = contestCVRs(globalRands, contestResult.countyIDs());
+    Map<Long,List<Integer>> segments = contestCVRs(globalRands, contestResult.countyIDs());
     // order by countyID, but it doesn't really matter, because we only use this to check contains
-    List<Integer> tempCvrIds = result.values().stream()
+    List<Integer> tempCvrIds = segments.values().stream()
       // flatten
       .collect(ArrayList::new, ArrayList::addAll, ArrayList::addAll);
 
@@ -58,9 +59,9 @@ public final class BallotSelection {
       .map(Long::valueOf)
       .collect(Collectors.toList());
 
-    //  to calculate auditPrefixLength somehow (progress)
     contestResult.setContestRands(globalRands);
     contestResult.setContestCVRIds(cvrIds);
+    contestResult.setSegments(segments);
 
     LOGGER.info(String.format("Building segments for contest:"
                               + " [contestResult=%s, seed=%s, globalTotal=%d,"
@@ -68,7 +69,7 @@ public final class BallotSelection {
                               contestResult, seed, globalTotal,
                               minIndex, maxIndex, globalRands.size()));
 
-    return result;
+    return contestResult;
   }
 
   /**

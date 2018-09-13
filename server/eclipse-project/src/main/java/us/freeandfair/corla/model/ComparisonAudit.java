@@ -44,6 +44,9 @@ import javax.persistence.MapKeyJoinColumn;
 import javax.persistence.Table;
 import javax.persistence.Version;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import us.freeandfair.corla.math.Audit;
 import us.freeandfair.corla.model.CVRContestInfo.ConsensusValue;
 import us.freeandfair.corla.model.CastVoteRecord.RecordType;
@@ -61,6 +64,13 @@ import us.freeandfair.corla.persistence.PersistentEntity;
 @Table(name = "comparison_audit")
 
 public class ComparisonAudit implements PersistentEntity {
+
+  /**
+   * Class-wide logger
+   */
+  public static final Logger LOGGER =
+    LogManager.getLogger(ComparisonAudit.class);
+
   /**
    * The database stored precision for decimal types.
    */
@@ -608,6 +618,7 @@ public class ComparisonAudit implements PersistentEntity {
 
   /** was the given cvrid selected for this contest? **/
   public boolean isCovering(Long cvrId) {
+    // if this is an opportunistic audit, this will be empty
     return contestResult().getContestCVRIds().contains(cvrId);
   }
 
