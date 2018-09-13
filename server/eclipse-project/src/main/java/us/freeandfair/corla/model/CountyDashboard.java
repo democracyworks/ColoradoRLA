@@ -215,8 +215,7 @@ public class CountyDashboard implements PersistentEntity {
    * The set of contests that drive our audits. Strings, not "fancy"
    * Abstract Data Types
    */
-  @Column(nullable = false, updatable = false,
-          name = "driving_contests", columnDefinition = TEXT)
+  @Column(name = "driving_contests", columnDefinition = TEXT)
   @Convert(converter = StringSetConverter.class)
   private Set<String> drivingContestNames = new HashSet<>();
 
@@ -224,7 +223,12 @@ public class CountyDashboard implements PersistentEntity {
   /**
    * The audit data.
    */
-  @ManyToMany(mappedBy = "countyDashboards")
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(name = "counties_to_comparison_audits",
+             joinColumns = { @JoinColumn(name = DASHBOARD_ID,
+                                         referencedColumnName = MY_ID) },
+             inverseJoinColumns = { @JoinColumn(name = "comparison_audit_id",
+                                                referencedColumnName = MY_ID) })
   private Set<ComparisonAudit> my_comparison_audits = new HashSet<>();
 
   /**
@@ -537,7 +541,6 @@ public class CountyDashboard implements PersistentEntity {
   /**
    * @return the set of comparison audits being performed.
    */
-  //FIXME this should be a Set<ComparisonAudit>
   public Set<ComparisonAudit> comparisonAudits() {
     return Collections.unmodifiableSet(my_comparison_audits);
   }

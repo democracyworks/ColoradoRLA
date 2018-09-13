@@ -71,19 +71,6 @@ public class ComparisonAudit implements PersistentEntity {
    */
   public static final int SCALE = 8;
 
-  @ManyToMany()
-  @JoinTable(name = "counties_to_comparison_audits",
-             joinColumns = { @JoinColumn(name = "comparison_audit_id") },
-             inverseJoinColumns = { @JoinColumn(name = "county_dashboard_id") })
-  private final Set<CountyDashboard> countyDashboards = new HashSet<>();
-
-  // /**
-  //  * set the set of counties
-  //  */
-  // public boolean addCountyDashboards(final Set<CountyDashboard> cs) {
-  //   return this.countyDashboards.addAll(cs);
-  // }
-
   /**
    * @return the counties related to this contestresult.
    */
@@ -449,31 +436,31 @@ public class ComparisonAudit implements PersistentEntity {
    * sequence of CVR ids by county, but we need to find a way to
    * replicate that view at a higher level.
    */
-  public Integer auditedPrefixLength() {
-    return this.auditedPrefixLength;
-  }
+  // public Integer auditedPrefixLength() {
+  //   return this.auditedPrefixLength;
+  // }
 
   /** set by inc  **/
-  public void incAuditedPrefixLength() {
-    this.auditedPrefixLength = this.auditedPrefixLength + 1;
-  }
+  // public void incAuditedPrefixLength() {
+  //   this.auditedPrefixLength = this.auditedPrefixLength + 1;
+  // }
 
-  public BigDecimal auditedSamples() {
-    // FIXME Originally, we were doing a county level audit. Now, we
-    // need to think about many counties, so we need to find out how
-    // many samples we've audited across all of the counties that
-    // aprticipate.
+  // public BigDecimal auditedSamples() {
+  //   // FIXME Originally, we were doing a county level audit. Now, we
+  //   // need to think about many counties, so we need to find out how
+  //   // many samples we've audited across all of the counties that
+  //   // aprticipate.
 
-    return this.auditedSamples;
-  }
+  //   return this.auditedSamples;
+  // }
 
   /** incAuditedSamples **/
-  public void incAuditedSamples() {
-    // FIXME collect the number of 1&2 vote overstatements across
-    // participating counties.
+  // public void incAuditedSamples() {
+  //   // FIXME collect the number of 1&2 vote overstatements across
+  //   // participating counties.
 
-    this.auditedSamples = this.auditedSamples.add(new BigDecimal(1));
-  }
+  //   this.auditedSamples = this.auditedSamples.add(new BigDecimal(1));
+  // }
 
   /**  number of both one and two overstatements summed **/
   public BigDecimal overstatements() {
@@ -497,7 +484,23 @@ public class ComparisonAudit implements PersistentEntity {
   }
 
   /**
-   * Recalculates the overall numbers of ballots to audit.
+   * A scaling factor for the estimate, from 1 (when no samples have been audited) upward.
+   * The scaling factor grows as the ratio of overstatements to samples increases.
+   */
+  private BigDecimal scalingFactor() {
+    final BigDecimal auditedSamples = BigDecimal.valueOf(getAuditedSampleCount());
+    if (auditedSamples.equals(BigDecimal.ZERO)) {
+      return BigDecimal.ONE;
+    } else {
+      return BigDecimal.ONE.add(overstatements()
+                                .divide(auditedSamples, MathContext.DECIMAL128));
+      }
+  }
+
+  /**
+   * Recalculates the overall numbers of ballots to audit, setting this
+   * object's `my_optimistic_samples_to_audit` and
+   * `my_estimates_samples_to_audit` fields.
    */
   private void recalculateSamplesToAudit() {
     if (my_optimistic_recalculate_needed) {
@@ -511,25 +514,12 @@ public class ComparisonAudit implements PersistentEntity {
 
     if (my_one_vote_over_count + my_two_vote_over_count == 0) {
       my_estimated_samples_to_audit = my_optimistic_samples_to_audit;
-    } else {
-      // compute the "fudge factor" for the estimate
-      // FIXME extract-fn:
-      // fudge_factor = ComparisonAuditController.scalingFactor(auditedSamples(), overstatements());
-      final BigDecimal audited_samples = auditedSamples();
-      final BigDecimal overstatements = overstatements();
-      final BigDecimal fudge_factor;
-
-      if (audited_samples.equals(BigDecimal.ZERO)) {
-        fudge_factor = BigDecimal.ONE;
-      } else {
-        fudge_factor =
-          BigDecimal.ONE.add(overstatements.divide(audited_samples, MathContext.DECIMAL128));
-      }
-      // extract-fn
-
-      final BigDecimal estimated =
-        BigDecimal.valueOf(my_optimistic_samples_to_audit).multiply(fudge_factor);
-      my_estimated_samples_to_audit = estimated.setScale(0, RoundingMode.CEILING).intValue();
+    } else {;
+      my_estimated_samples_to_audit =
+        BigDecimal.valueOf(my_optimistic_samples_to_audit)
+        .multiply(scalingFactor())
+        .setScale(0, RoundingMode.CEILING)
+        .intValue();
     }
     my_estimated_recalculate_needed = false;
   }
@@ -996,10 +986,11 @@ public class ComparisonAudit implements PersistentEntity {
   }
 
   public String toString() {
-    return  String.format("[ComparisonAudit %s auditedSampleCount=%d rands=%s status=%s]",
+    return  String.format("[ComparisonAudit %s: auditedSampleCount=%d, rands=%s, status=%s, reason=%s]",
                           this.contestResult().getContestName(),
                           this.getAuditedSampleCount(),
                           this.contestResult().getContestRands(),
-                          my_audit_status);
+                          my_audit_status,
+                          this.auditReason());
   }
 }

@@ -368,6 +368,7 @@ public final class ComparisonAuditController {
       .map(ca -> ca.contestResult().getContestName())
       .collect(Collectors.toSet());
 
+    LOGGER.info(String.format("Starting first Round for %s, drivingContests=%s", cdb.county(), drivingContestNames));
     cdb.setAuditedPrefixLength(0);
     cdb.setAuditedSampleCount(0);
     cdb.setDrivingContestNames(drivingContestNames);
@@ -387,6 +388,9 @@ public final class ComparisonAuditController {
       .sorted(new CastVoteRecord.BallotOrderComparator())
       .map(cvr -> cvr.id())
       .collect(Collectors.toList());
+
+    Persistence.saveOrUpdate(cdb);
+    LOGGER.info("SAVED_CDB with audits: " + cdb.comparisonAudits());
 
     cdb.startRound(ballotSequence.size(),
                    auditSubsequence.size(),
@@ -626,13 +630,18 @@ public final class ComparisonAuditController {
                   ", cvr " + the_cvr_under_audit.id());
     }
     Persistence.flush();
+
+    LOGGER.info(String.format("[Before recalc: auditedSampleCount=%d, estimatedSamples=%d, optimisticSamples=%d",
+                              cdb.auditedSampleCount(),
+                              cdb.estimatedSamplesToAudit(),
+                              cdb.optimisticSamplesToAudit()));
     updateCVRUnderAudit(cdb);
-    cdb.
-        setEstimatedSamplesToAudit(estimatedSamplesToAudit(cdb) -
-                                   cdb.auditedSampleCount());
-    cdb.
-        setOptimisticSamplesToAudit(computeOptimisticSamplesToAudit(cdb) -
-                                    cdb.auditedSampleCount());
+    cdb.setEstimatedSamplesToAudit(estimatedSamplesToAudit(cdb) - cdb.auditedSampleCount());
+    cdb.setOptimisticSamplesToAudit(computeOptimisticSamplesToAudit(cdb) - cdb.auditedSampleCount());
+    LOGGER.info(String.format("[After recalc: auditedSampleCount=%d, estimatedSamples=%d, optimisticSamples=%d",
+                              cdb.auditedSampleCount(),
+                              cdb.estimatedSamplesToAudit(),
+                              cdb.optimisticSamplesToAudit()));
     cdb.updateAuditStatus();
     return result;
   }
@@ -647,17 +656,24 @@ public final class ComparisonAuditController {
    */
   public static int estimatedSamplesToAudit(final CountyDashboard cdb) {
     int to_audit = Integer.MIN_VALUE;
-    // FIXME waht if driving contests were contest names - as strings -
-    // instead of Contest Objects? We're interested in knowing which
-    // numbers to consider relevant here...
     final Set<String> drivingContests = cdb.drivingContestNames();
-    for (final ComparisonAudit ca : cdb.comparisonAudits()) {
-      if (drivingContests.contains(ca.contestResult().getContestName())) {
-        final int bta = ca.estimatedSamplesToAudit();
-        to_audit = Math.max(to_audit, bta);
+
+    LOGGER.debug(String.format("[estimatedSamplesToAudit: "
+                               + "drivingContestNames=%s, comparisonAudits=%s]",
+                               cdb.drivingContestNames(), cdb.comparisonAudits()));
+
+    // FIXME might look better as a stream().filter().
+    for (final ComparisonAudit ca : cdb.comparisonAudits()) { // to_audit = cdb.comparisonAudits.stream()
+      final String contestName = ca.contestResult().getContestName(); // strike
+      if (drivingContests.contains(contestName)) { // .filter(ca -> drivingContests.contains(ca.contestResult().getContestName()))
+        final int bta = ca.estimatedSamplesToAudit(); // .map(ComparisonAudit::estimatedSamplesToAudit)
+        to_audit = Math.max(to_audit, bta);           // .max() gets the biggest of all driving contest estimated samples
+        LOGGER.debug(String.format("[estimatedSamplesToAudit: "
+                                   + "driving contest=%s, bta=%d, to_audit=%d]",
+                                   ca.contestResult().getContestName(), bta, to_audit));
       }
     }
-    return Math.max(0,  to_audit);
+    return Math.max(0, to_audit);
   }
 
   /**
