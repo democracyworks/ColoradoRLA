@@ -18,7 +18,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -26,7 +25,6 @@ import java.util.Set;
 import javax.persistence.Cacheable;
 import javax.persistence.CollectionTable;
 import javax.persistence.Column;
-import javax.persistence.Convert;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -35,7 +33,6 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
@@ -50,9 +47,7 @@ import org.apache.log4j.Logger;
 import us.freeandfair.corla.math.Audit;
 import us.freeandfair.corla.model.CVRContestInfo.ConsensusValue;
 import us.freeandfair.corla.model.CastVoteRecord.RecordType;
-import us.freeandfair.corla.persistence.LongListConverter;
 import us.freeandfair.corla.persistence.PersistentEntity;
-
 
 /**
  * A class representing the state of a single audited contest for
@@ -63,6 +58,9 @@ import us.freeandfair.corla.persistence.PersistentEntity;
 @Cacheable(true)
 @Table(name = "comparison_audit")
 
+@SuppressWarnings({"PMD.ImmutableField", "PMD.CyclomaticComplexity", "PMD.GodClass",
+    "PMD.ModifiedCyclomaticComplexity", "PMD.StdCyclomaticComplexity", "PMD.TooManyFields",
+    "PMD.TooManyMethods", "PMD.ExcessiveImports"})
 public class ComparisonAudit implements PersistentEntity {
 
   /**
@@ -80,13 +78,6 @@ public class ComparisonAudit implements PersistentEntity {
    * The database stored scale for decimal types.
    */
   public static final int SCALE = 8;
-
-  /**
-   * @return the counties related to this contestresult.
-   */
-  public Set<County> getCounties() {
-    return Collections.unmodifiableSet(this.contestResult().getCounties());
-  }
 
   /**
    * The ID number.
@@ -204,21 +195,7 @@ public class ComparisonAudit implements PersistentEntity {
    * gets incremented
    */
   @Column(nullable = true) // true for migration
-  private Integer auditedPrefixLength = 0;
-
-  /**
-   * gets incremented
-   */
-  @Column(nullable = true) // true for migration
-  private BigDecimal auditedSamples = BigDecimal.ZERO;
-
-  /**
-   * gets incremented
-   */
-  @Column(nullable = true) // true for migration
   private BigDecimal overstatements = BigDecimal.ZERO;
-
-
 
   /**
    * A flag that indicates whether the optimistic ballots to audit
@@ -274,6 +251,11 @@ public class ComparisonAudit implements PersistentEntity {
    * @param gamma γ
    * @param auditReason The audit reason.
    */
+  // FIXME estimatedSamplesToAudit / optimisticSamplesToAudit have side
+  // effects, so we should call that out
+  //
+  // FIXME Remove the warning by not calling overridable methods :D
+  @SuppressWarnings({"PMD.ConstructorCallsOverridableMethod"})
   public ComparisonAudit(final ContestResult contestResult,
                          final BigDecimal riskLimit,
                          final BigDecimal dilutedMargin,
@@ -321,6 +303,13 @@ public class ComparisonAudit implements PersistentEntity {
   }
 
   /**
+   * @return the counties related to this contestresult.
+   */
+  public Set<County> getCounties() {
+    return Collections.unmodifiableSet(this.contestResult().getCounties());
+  }
+
+  /**
    * @return the contest result associated with this audit.
    */
   public ContestResult contestResult() {
@@ -364,10 +353,10 @@ public class ComparisonAudit implements PersistentEntity {
 
   /** see if the county is participating in this audit(contest) **/
   public boolean isForCounty(final Long countyId) {
-    Optional<County> result = getCounties().stream()
+    return getCounties().stream()
       .filter(c -> c.id().equals(countyId))
-      .findFirst();
-    return result.isPresent();
+      .findFirst()
+      .isPresent();
   }
 
   /**
@@ -427,7 +416,7 @@ public class ComparisonAudit implements PersistentEntity {
    * @return the expected overall number of ballots to audit, assuming
    * overstatements continue to occur at the current rate.
    */
-  public Integer estimatedSamplesToAudit() {
+  public final Integer estimatedSamplesToAudit() {
     if (my_estimated_recalculate_needed) {
       recalculateSamplesToAudit();
     }
@@ -480,22 +469,16 @@ public class ComparisonAudit implements PersistentEntity {
     return this.overstatements;
   }
 
-  /** incOverStatements **/
-  public void incOverStatements() {
-    // FIXME collect the number of 1&2 vote overstatements across
-    // participating counties.
-
-    this.overstatements = this.overstatements.add(new BigDecimal(1));
-  }
-
   /** getter **/
   public Integer getAuditedSampleCount() {
     return this.my_audited_sample_count;
   }
 
   /**
-   * A scaling factor for the estimate, from 1 (when no samples have been audited) upward.
-   * The scaling factor grows as the ratio of overstatements to samples increases.
+   * A scaling factor for the estimate, from 1 (when no samples have
+   * been audited) upward.41
+   The scaling factor grows as the ratio of
+   * overstatements to samples increases.
    */
   private BigDecimal scalingFactor() {
     final BigDecimal auditedSamples = BigDecimal.valueOf(getAuditedSampleCount());
@@ -524,7 +507,7 @@ public class ComparisonAudit implements PersistentEntity {
 
     if (my_one_vote_over_count + my_two_vote_over_count == 0) {
       my_estimated_samples_to_audit = my_optimistic_samples_to_audit;
-    } else {;
+    } else {
       my_estimated_samples_to_audit =
         BigDecimal.valueOf(my_optimistic_samples_to_audit)
         .multiply(scalingFactor())
@@ -975,38 +958,9 @@ public class ComparisonAudit implements PersistentEntity {
   }
 
   /**
-   * Computes the discrepancy between a phantom ballot and the specified
-   * CVRContestInfo.
-   *
-   * @param the_info The CVRContestInfo.
-   * @return the discrepancy.
+   * a good idea
    */
-  private Integer computePhantomBallotDiscrepancy(final CVRContestInfo the_info) {
-    final int result;
-
-    // if the ACVR is a phantom ballot, we need to assume that it was a vote
-    // for all the losers; so if any winners had votes on the original CVR
-    // it's a 2-vote overstatement, otherwise a 1-vote overstatement
-
-    if (the_info == null) {
-      // this contest doesn't appear in the CVR, so we assume the worst
-      // FIXME I think this is the same as "this CVR has no winners?"
-      result = 2;
-    } else {
-      // this contest does appear in the CVR, so we can actually check
-      final Set<String> winner_votes = new HashSet<>(the_info.choices());
-      // FIXME pass my_contest_result as a function argument
-      winner_votes.removeAll(my_contest_result.getLosers());
-      if (winner_votes.isEmpty()) {
-        result = 1;
-      } else {
-        result = 2;
-      }
-    }
-
-    return result;
-  }
-
+  @Override
   public String toString() {
     return  String.format("[ComparisonAudit %s: auditedSampleCount=%d, rands=%s, status=%s, reason=%s]",
                           this.contestResult().getContestName(),

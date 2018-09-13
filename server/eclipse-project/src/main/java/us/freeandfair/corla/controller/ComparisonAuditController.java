@@ -35,7 +35,6 @@ import us.freeandfair.corla.model.CVRAuditInfo;
 import us.freeandfair.corla.model.CVRContestInfo;
 import us.freeandfair.corla.model.CVRContestInfo.ConsensusValue;
 import us.freeandfair.corla.model.CastVoteRecord;
-import us.freeandfair.corla.model.Contest;
 import us.freeandfair.corla.model.ContestResult;
 import us.freeandfair.corla.model.County;
 import us.freeandfair.corla.model.ComparisonAudit;
@@ -360,10 +359,13 @@ public final class ComparisonAuditController {
       .collect(Collectors.toSet());
   }
 
+  /**
+   * do the part of setup for a county dashboard to starit their round.
+   */
   public static boolean startFirstRound(final CountyDashboard cdb,
                                         final Set<ComparisonAudit> audits,
                                         final List<Integer> subsequence) {
-    Set<String> drivingContestNames = audits.stream()
+    final Set<String> drivingContestNames = audits.stream()
       .filter(ca -> ca.contestResult().getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
       .map(ca -> ca.contestResult().getContestName())
       .collect(Collectors.toSet());
@@ -913,7 +915,10 @@ public final class ComparisonAuditController {
   private static void updateCVRUnderAudit(final CountyDashboard the_cdb) {
     // start from where we are in the current round
     final Round round = the_cdb.currentRound();
-    final Set<ComparisonAudit> audits = the_cdb.comparisonAudits();
+
+    // FIXME I am unused; did we forget something?
+    // final Set<ComparisonAudit> audits = the_cdb.comparisonAudits();
+
     if (round != null) {
       final Set<Long> checked_ids = new HashSet<>();
       int index = round.actualAuditedPrefixLength() - round.startAuditedPrefixLength();

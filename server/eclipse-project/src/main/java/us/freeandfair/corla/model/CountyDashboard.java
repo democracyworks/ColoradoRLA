@@ -28,7 +28,6 @@ import java.util.Comparator;
 import javax.persistence.AttributeOverride;
 import javax.persistence.AttributeOverrides;
 import javax.persistence.Cacheable;
-import javax.persistence.CascadeType;
 import javax.persistence.CollectionTable;
 import javax.persistence.Column;
 import javax.persistence.Convert;
@@ -40,7 +39,6 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
-import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 import javax.persistence.OrderColumn;
 import javax.persistence.Table;
@@ -84,11 +82,6 @@ public class CountyDashboard implements PersistentEntity {
    * The "no content" constant.
    */
   private static final Integer NO_CONTENT = null;
-
-  /**
-   * The "my_dashboard" string.
-   */
-  private static final String MY_DASHBOARD = "my_dashboard";
 
   /**
    * The "index" string.
@@ -199,19 +192,6 @@ public class CountyDashboard implements PersistentEntity {
    * The current audit round.
    */
   private Integer my_current_round_index;
-
-  /**
-   * The set of contests driving the audit.
-   * @deprecated
-   * TODO eventually remove this
-   */
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(name = "driving_contest",
-             joinColumns = @JoinColumn(name = DASHBOARD_ID,
-                                       referencedColumnName = MY_ID),
-             inverseJoinColumns = @JoinColumn(name = "contest_id",
-                                              referencedColumnName = MY_ID))
-  private Set<Contest> my_driving_contests = new HashSet<>();
 
   /**
    * The set of contests that drive our audits. Strings, not "fancy"

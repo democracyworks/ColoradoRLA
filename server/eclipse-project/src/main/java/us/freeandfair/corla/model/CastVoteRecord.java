@@ -341,6 +341,12 @@ public class CastVoteRecord implements PersistentEntity, Serializable {
     return null;
   }
 
+  /**
+   * Get info about a CVR by way of a ContestResult, matching on contest
+   * name.
+   * @param cr
+   * @return maybe the first CVRContestInfo found, maybe nothing.
+   */
   public Optional<CVRContestInfo> contestInfoForContestResult(final ContestResult cr) {
     return my_contest_info.stream()
       .filter(x -> x.contest().name().equals(cr.getContestName()))

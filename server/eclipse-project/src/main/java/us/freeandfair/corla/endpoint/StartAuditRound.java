@@ -17,7 +17,6 @@ import static us.freeandfair.corla.asm.ASMState.DoSDashboardState.COMPLETE_AUDIT
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,7 +45,6 @@ import us.freeandfair.corla.json.SubmittedAuditRoundStart;
 import us.freeandfair.corla.math.Audit;
 import us.freeandfair.corla.model.AuditReason;
 import us.freeandfair.corla.model.ComparisonAudit;
-import us.freeandfair.corla.model.Contest;
 import us.freeandfair.corla.model.ContestResult;
 import us.freeandfair.corla.model.ContestToAudit;
 import us.freeandfair.corla.model.CountyDashboard;
@@ -227,13 +225,6 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     final DoSDashboard dosdb = Persistence.getByID(DoSDashboard.ID, DoSDashboard.class);
     final BigDecimal riskLimit = dosdb.auditInfo().riskLimit();
     final String seed = dosdb.auditInfo().seed();
-    // TODO we're checking this later, but at that point we should have
-    // the ContestResults setup...
-    final Set<String> targetedContestNames =
-      dosdb.targetedContests()
-      .map(x -> x.name())
-      .collect(Collectors.toSet());
-
     final List<ContestResult> persistedContestResults = countAndSaveContests(dosdb.contestsToAudit());
 
     final List<ContestResult> targetedContestResults = persistedContestResults.stream()
@@ -241,11 +232,10 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
       .collect(Collectors.toList());
     final Map<Long, List<Integer>> auditSegments = combineSegments(seed, riskLimit, targetedContestResults);
 
-    Set<ComparisonAudit> comparisonAudits =
+    final Set<ComparisonAudit> comparisonAudits =
       ComparisonAuditController.createAudits(riskLimit, persistedContestResults);
 
     LOGGER.info("comparisonAudits = " + comparisonAudits);
-
 
     // Nothing in this try-block should know about HTTP requests / responses
     // update every county dashboard with a list of ballots to audit

@@ -288,10 +288,14 @@ public class ContestResult implements PersistentEntity, Serializable {
 
 
   /** store generated random numbers for the contest **/
-  public void setContestRands (List<Integer> contestRands) {
+  public void setContestRands (final List<Integer> contestRands) {
     this.contestRands = contestRands;
   }
 
+  /**
+   * getter
+   * @return a list of random samples for this contest result
+   */
   public List<Integer> getContestRands() {
     return this.contestRands;
   }
