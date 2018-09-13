@@ -33,6 +33,7 @@ import javax.persistence.UniqueConstraint;
 import javax.persistence.Version;
 
 import us.freeandfair.corla.persistence.IntegerListConverter;
+import us.freeandfair.corla.persistence.LongListConverter;
 import us.freeandfair.corla.persistence.PersistentEntity;
 import us.freeandfair.corla.persistence.StringSetConverter;
 
@@ -164,6 +165,13 @@ public class ContestResult implements PersistentEntity, Serializable {
   @Convert(converter = IntegerListConverter.class)
   private List<Integer> contestRands;
 
+  /**
+   * The sequence of CastVoteRecord ids for this contest ordered by County id
+   */
+  @Column(name = "contest_cvr_ids", columnDefinition = "text")
+  @Convert(converter = LongListConverter.class)
+  private List<Long> contestCVRIds;
+
 
   /**
    * Constructs a new empty ContestResult (solely for persistence).
@@ -265,6 +273,15 @@ public class ContestResult implements PersistentEntity, Serializable {
   public List<Integer> getContestRands() {
     return this.contestRands;
   }
+
+  public void setContestCVRIds (List<Long> contestCVRIds) {
+    this.contestCVRIds = contestCVRIds;
+  }
+
+  public List<Long> getContestCVRIds() {
+    return this.contestCVRIds;
+  }
+
 
   /**
    * @param county the county owning the contest you want

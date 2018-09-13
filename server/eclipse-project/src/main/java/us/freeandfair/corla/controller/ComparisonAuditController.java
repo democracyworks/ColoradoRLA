@@ -822,6 +822,7 @@ public final class ComparisonAuditController {
         discrepancies.add(ca.auditReason());
       }
 
+      // NOTE: this may or may not be correct, we're not sure
       if (contest_disagreements.contains(ca.contestResult().getContestName())) {
         for (int i = 0; i < audit_count; i++) {
           ca.recordDisagreement(auditInfo);
@@ -833,7 +834,6 @@ public final class ComparisonAuditController {
       Persistence.saveOrUpdate(ca);
     }
 
-    // FIXME auditInfo is a CVRAuditInfo, which seems to be tied still to a county, or not?
     auditInfo.setDiscrepancy(discrepancies);
     auditInfo.setDisagreement(disagreements);
     auditInfo.setCounted(auditInfo.multiplicity());

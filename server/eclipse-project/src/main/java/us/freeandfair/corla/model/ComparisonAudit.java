@@ -606,6 +606,13 @@ public class ComparisonAudit implements PersistentEntity {
     return my_disagreement_count;
   }
 
+  /** was the given cvrid selected for this contest? **/
+  public boolean isCovering(Long cvrId) {
+    return contestResult().getContestCVRIds().contains(cvrId);
+  }
+
+
+
   /**
    * Records the specified discrepancy (the valid range is -2 .. 2: -2 and -1 are
    * understatements, 0 is a discrepancy that doesn't affect the RLA calculations,
@@ -786,6 +793,10 @@ public class ComparisonAudit implements PersistentEntity {
   public OptionalInt computeDiscrepancy(final CastVoteRecord cvr,
                                         final CastVoteRecord auditedCVR) {
     OptionalInt result = OptionalInt.empty();
+
+    if (!isCovering(cvr.id())) {
+      return result;
+    }
 
     // FIXME this needs to get this stuff from the ContestResult
     // - a CastVoteRecord belongs to a county.

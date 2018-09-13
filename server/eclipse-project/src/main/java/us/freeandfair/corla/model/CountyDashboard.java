@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Comparator;
 
 import javax.persistence.AttributeOverride;
 import javax.persistence.AttributeOverrides;
@@ -796,7 +797,12 @@ public class CountyDashboard implements PersistentEntity {
    * @return the estimated number of samples to audit.
    */
   public Integer estimatedSamplesToAudit() {
-    return my_estimated_samples_to_audit;
+    // return my_estimated_samples_to_audit;
+    // NOTE: there could be race conditions between audit boards across counties
+    return comparisonAudits().stream()
+      .map(ca -> ca.estimatedSamplesToAudit())
+      .max(Comparator.naturalOrder())
+      .get();
   }
 
   /**
