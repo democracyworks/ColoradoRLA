@@ -496,6 +496,11 @@ public class ComparisonAudit implements PersistentEntity {
    * `my_estimates_samples_to_audit` fields.
    */
   private void recalculateSamplesToAudit() {
+    LOGGER.warn(String.format("[recalculateSamplestoAudit contestName=%s, "
+                               + "twoUnder=%d, oneUnder=%d, oneOver=%d, twoOver=%d]",
+                               contestResult().getContestName(),
+                               my_two_vote_under_count, my_one_vote_under_count,
+                               my_one_vote_over_count, my_two_vote_over_count));
     if (my_optimistic_recalculate_needed) {
       final BigDecimal optimistic = computeOptimisticSamplesToAudit(my_two_vote_under_count,
                                                                     my_one_vote_under_count,
@@ -653,6 +658,8 @@ public class ComparisonAudit implements PersistentEntity {
       throw new IllegalArgumentException("invalid discrepancy type: " + the_type);
     }
 
+    LOGGER.info(String.format("[recordDiscrepancy type=%s, record=%s]",
+                              the_type, the_record));
     my_discrepancies.put(the_record, the_type);
   }
 
