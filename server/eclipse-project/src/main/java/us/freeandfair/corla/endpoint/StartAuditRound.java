@@ -176,6 +176,21 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
   }
 
   /**
+   * find the first cvr that is not audited and that is how far we are along in
+   * the audit, according to theory
+   **/
+  public Integer auditedPrefixLength(Map<Long,Boolean> cvrsById, List<Long> cvrIds) {
+    Integer apl = 0;
+    for (i=0, i > cvrIds.size(), i++) {
+      if (!cvrsById.get(cvrIds.get(i))) {
+        apl = i;
+        break;
+      }
+    }
+    return apl;
+  }
+
+  /**
    * sets selection on each contestResult, the results of
    * BallotSelection.randomSelection
    */
@@ -196,7 +211,7 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
           cvrsById.put(cvr.id(), cvr.isAudited());
         }
 
-        final Integer startIndex = auditedPrefixLength(cvrs, contestResult.getContestCVRIds());
+        final Integer startIndex = auditedPrefixLength(cvrsById, contestResult.getContestCVRIds());
         final Integer endIndex = optimistic.intValue() - 1;
 
         Selection selection = BallotSelection.randomSelection(contestResult,
@@ -220,16 +235,10 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
    * All contests for county and their selections combined into a
    * single segment
    **/
-  public Segment combineSegments(CountyDashboard cdb, Set<ComparisonAudit> auditsForCounty) {
-    List<Segment> countyContestSegments = auditsForCounty.stream()
+  public Segment combinedSegment(CountyDashboard cdb) {
+    List<Segment> countyContestSegments = cdb.comparisonAudits().stream()
       .map(ca -> (Segment)ca.contestResult().selection.forCounty(cdb.county().id()))
       .collect(Collectors.toList());
-<<<<<<< variant A
-    // All contests for county and their selections combined into a
-    // single segment
-
->>>>>>> variant B
-======= end
     return Selection.combineSegments(countyContestSegments);
   }
 
@@ -285,13 +294,16 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
           if (cdb.cvrFile() == null || cdb.manifestFile() == null) {
             LOGGER.info(COUNTY + cdb.id() + " missed the file upload deadline");
           } else {
+            cdb.setComparisonAudits(comparisonAudits.stream()
+                                    .filter(ca -> ca.isForCounty(cdb.county().id())
+                                    .collect(Collectors.toSet()))
             // all contest that this county is participating in
-            final Segment segment = combinedSegment(cdb, comparisonAudits);
+            final Segment segment = combinedSegment(cdb);
 
             LOGGER.info("county = " + cdb.county() + " subsequence = " + segment.auditSequence());
             final boolean started =
               ComparisonAuditController.startFirstRound(cdb,
-                                                        auditsForCounty,
+                                                        cdb.comparisonAudits(),
                                                         segment.auditSequence(),
                                                         segment.ballotSequence());
 
@@ -402,7 +414,8 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                    auditSequence.size() + 1, // LIE!
                    ballotSequence,
                    auditSequence);
-    updateRound(cdb, cdb.currentRound());
+    // FIXME
+    // updateRound(cdb, cdb.currentRound());
     updateCVRUnderAudit(cdb);
 
     // if the round was started there will be ballots to count
@@ -452,7 +465,6 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
 
         final Set<ComparisonAudit> comparisonAudits = new HashSet<>();
         final Segment segment = combinedSegment(cdb, comparisonAudits);
-        final int roundOffset = auditedPrefixLength();
 
         LOGGER.info("county = " + cdb.county() + " subsequence = " + segment.auditSequence());
 

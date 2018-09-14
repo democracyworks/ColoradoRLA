@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.persistence.Cacheable;
 import javax.persistence.CollectionTable;
@@ -159,7 +160,7 @@ public class CastVoteRecord implements PersistentEntity, Serializable, Comparabl
   /**
    * The CVR to audit.
    */
-  @OneToMany(optional = true, fetch = FetchType.EAGER)
+  @OneToMany(fetch = FetchType.EAGER)
   private Set<CVRAuditInfo> cvrAuditInfos;
 
   public boolean isAudited() {
