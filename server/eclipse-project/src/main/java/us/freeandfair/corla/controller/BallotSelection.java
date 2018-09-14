@@ -84,10 +84,16 @@ public final class BallotSelection {
         .map(cvr -> cvr.id())
         .collect(Collectors.toList());
     }
+
+    public String toString() {
+      return String.format("[Segment auditSequence=%s ballotSequence=%s ballotPositions=%s ",
+                           auditSequence(),
+                           ballotSequence(),
+                           tributes.stream().map(t -> t.ballotPosition).collect(Collectors.toList()));
+    }
   }
 
   public static class Selection {
-    public List<Integer> globalRands = new ArrayList<>();
     public Map<Long,Segment> segments = new HashMap<>(); //fast access
     public Integer domainSize;
     public List<Integer> generatedNumbers;
@@ -96,8 +102,9 @@ public final class BallotSelection {
     public String seed;
     public BigDecimal riskLimit;
 
-    public static Segment combineSegments(List<Segment> segments) {
+    public static Segment combineSegments(Collection<Segment> segments) {
       return segments.stream()
+        .filter(s -> null != s)
         .reduce(new Segment(),
                 (acc,s) -> {
                   // can't ask segment.cvrs for raw data because it is a TreeSet
@@ -136,22 +143,12 @@ public final class BallotSelection {
         .collect(Collectors.toList());
     }
 
-    // /** deduped and sorted **/
-    // public List<Long> ballotSequence() {
-    //   return contestResult.countyIDs().stream()
-    //     .map(id -> forCounty(id))
-    //     .filter(s -> s != null)
-    //     .map(segment -> segment.cvrs)
-    //     .flatMap(List::stream)
-    //     .distinct() // no dups
-    //     .sorted() // they can sort themselves
-    //     .collect(Collectors.toList());
-    // }
-
-    // /** in the order of the random selection, not deduped and not sorted **/
-    // public List<Long> auditSequence() {
-    //   return contestCVRIds();
-    // }
+    public String toString() {
+      return String.format("[Selection contestName=%s generatedNumbers=%s domainSize=%s]",
+                           contestName,
+                           generatedNumbers,
+                           domainSize);
+    }
   }
 
   /**
@@ -178,6 +175,7 @@ public final class BallotSelection {
     selection.generatedNumbers = generatedNumbers; //posterity
     selection.seed = seed; //posterity
 
+    LOGGER.info("randomSelection: selection= " + selection);
     // get the CVRs from the theoretical
     resolveSelection(selection);
     return selection;
@@ -224,10 +222,14 @@ public final class BallotSelection {
   /** look for the cvrs, some may be phantom records **/
   public static Selection resolveSelection(final Selection selection) {
     selection.allSegments().forEach(segment -> {
-        segment.addCvrs(segment.tributes.stream()
-                        .map(CastVoteRecordQueries::atPosition)
-                        .collect(Collectors.toList()));
+        final List<CastVoteRecord> cvrs = segment.tributes.stream()
+          .map(CastVoteRecordQueries::atPosition)
+          .collect(Collectors.toList());
+        segment.addCvrs(cvrs);
+        segment.addCvrIds(cvrs); // keep raw data separate
       });
+    LOGGER.info("resolveSelection = " + selection.segments);
+    LOGGER.info("resolveSelection = " + Selection.combineSegments(selection.allSegments()).cvrIds);
     return selection;
   }
 

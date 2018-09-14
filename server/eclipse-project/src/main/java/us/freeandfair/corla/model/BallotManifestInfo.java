@@ -26,8 +26,10 @@ import javax.persistence.Index;
 import javax.persistence.Table;
 import javax.persistence.Version;
 
+
 import org.hibernate.annotations.Immutable;
 
+import us.freeandfair.corla.Main;
 import us.freeandfair.corla.persistence.PersistentEntity;
 
 /**
@@ -144,7 +146,7 @@ public class BallotManifestInfo implements PersistentEntity, Serializable {
    * from county to batch scope
    **/
   public Integer translateRand(final Integer rand) {
-    return ballotPosition(sequencePosition(rand));
+    return sequencePosition(rand);
   }
 
   /**

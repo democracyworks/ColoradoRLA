@@ -275,20 +275,6 @@ public class ContestResult implements PersistentEntity, Serializable {
     return Collections.unmodifiableSet(this.contests);
   }
 
-
-  /** store generated random numbers for the contest **/
-  public void setContestRands (final List<Integer> contestRands) {
-    this.contestRands = contestRands;
-  }
-
-  /**
-   * getter
-   * @return a list of random samples for this contest result
-   */
-  public List<Integer> getContestRands() {
-    return this.contestRands;
-  }
-
   public void setContestCVRIds (List<Long> contestCVRIds) {
     this.contestCVRIds = contestCVRIds;
   }
@@ -425,7 +411,7 @@ public class ContestResult implements PersistentEntity, Serializable {
    */
   @Override
   public String toString() {
-    return "ContestResult [id=" + id() + " contestName=" + getContestName() + "]";
+    return "ContestResult [id=" + id() + " contestName=" + getContestName() +  " contestCVRIds=" + getContestCVRIds() + "]";
   }
 
   /**

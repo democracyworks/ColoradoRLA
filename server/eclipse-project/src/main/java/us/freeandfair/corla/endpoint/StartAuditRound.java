@@ -195,6 +195,8 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                                                               seed,
                                                               startIndex,
                                                               endIndex);
+        LOGGER.info("makeSelections selection= " + selection);
+        LOGGER.info("makeSelections contestCVRIds= " + selection.contestCVRIds());
         selection.riskLimit = riskLimit;
         contestResult.selection = selection;
         contestResult.setContestCVRIds(selection.contestCVRIds());
@@ -242,6 +244,7 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                    riskLimit,
                    persistedContestResults);
 
+    LOGGER.info("targetedContestResults = " + targetedContestResults);
     Set<ComparisonAudit> comparisonAudits = persistedContestResults.stream()
       .map(cr -> ComparisonAuditController.createAudit(cr))
       .collect(Collectors.toCollection(HashSet::new));

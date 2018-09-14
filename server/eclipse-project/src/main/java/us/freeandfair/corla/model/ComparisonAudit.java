@@ -475,6 +475,7 @@ public class ComparisonAudit implements PersistentEntity {
   }
 
   /**
+
    * A scaling factor for the estimate, from 1 (when no samples have
    * been audited) upward.41
    The scaling factor grows as the ratio of
@@ -981,10 +982,10 @@ public class ComparisonAudit implements PersistentEntity {
    */
   @Override
   public String toString() {
-    return  String.format("[ComparisonAudit %s: auditedSampleCount=%d, rands=%s, status=%s, reason=%s]",
+    return  String.format("[ComparisonAudit %s: auditedSampleCount=%d, contestCvrIds=%s, status=%s, reason=%s]",
                           this.contestResult().getContestName(),
                           this.getAuditedSampleCount(),
-                          this.contestResult().getContestRands(),
+                          this.contestResult().getContestCVRIds(),
                           my_audit_status,
                           this.auditReason());
   }
