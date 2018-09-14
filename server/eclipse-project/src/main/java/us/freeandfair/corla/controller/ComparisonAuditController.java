@@ -390,6 +390,22 @@ public final class ComparisonAuditController {
     return cdb.ballotsRemainingInCurrentRound() > 0;
   }
 
+  public static boolean startSubsequentRound(final CountyDashboard cdb,
+                                             final Set<ComparisonAudit> audits,
+                                             final List<Long> auditSequence,
+                                             final List<Long> ballotSequence) {
+    cdb.startRound(ballotSequence.size(),
+                   auditSequence.size(),
+                   auditSequence.size() + 1, // LIE!
+                   ballotSequence,
+                   auditSequence);
+    updateRound(cdb, cdb.currentRound());
+    updateCVRUnderAudit(cdb);
+
+    // if the round was started there will be ballots to count
+    return cdb.ballotsRemainingInCurrentRound() > 0;
+  }
+
   /**
    * Starts a new round on the specified dashboard with the specified number
    * of physical ballots.
@@ -488,6 +504,7 @@ public final class ComparisonAuditController {
                                  final BigDecimal the_multiplier) {
     final OptionalLong cvr_count =
         BallotManifestInfoQueries.maxSequence(cdb.county().id());
+    LOGGER.warn("cvr_count = " + cvr_count);
     if (!cvr_count.isPresent()) {
       throw new IllegalArgumentException("no cvrs");
     }
@@ -497,9 +514,13 @@ public final class ComparisonAuditController {
       throw new IllegalArgumentException("no previous audit rounds");
     } else {
       final Round previous_round = rounds.get(rounds.size() - 1);
+
+      LOGGER.warn("previous_round = " + previous_round);
       // we start the next round where the previous round actually ended
       // in the audit sequence
       start_index = previous_round.actualAuditedPrefixLength();
+
+      LOGGER.warn("start_index = " + start_index);
     }
     boolean result = false;
     if (cdb.ballotsAudited() == cvr_count.getAsLong()) {
@@ -512,6 +533,8 @@ public final class ComparisonAuditController {
           new TreeSet<>(new CastVoteRecord.BallotOrderComparator());
       final List<CastVoteRecord> new_cvrs = new ArrayList<>();
       int expected_prefix_length = 0;
+      LOGGER.warn("estimatedSamplesToAudit(cdb) = " + estimatedSamplesToAudit(cdb));
+      LOGGER.warn("cdb.auditedPrefixLength() = " + estimatedSamplesToAudit(cdb));
       while (sorted_deduplicated_new_cvrs.isEmpty()) {
         expected_prefix_length = estimatedSamplesToAudit(cdb);
         if (cdb.auditedPrefixLength() < expected_prefix_length) {

@@ -35,6 +35,7 @@ import javax.persistence.Id;
 import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.OrderColumn;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Version;
 
@@ -153,6 +154,17 @@ public class CastVoteRecord implements PersistentEntity, Serializable, Comparabl
    */
   @Column(updatable = false, nullable = false)
   private String my_ballot_type;
+
+
+  /**
+   * The CVR to audit.
+   */
+  @OneToMany(optional = true, fetch = FetchType.EAGER)
+  private Set<CVRAuditInfo> cvrAuditInfos;
+
+  public boolean isAudited() {
+    return !this.cvrAuditInfos.isEmpty();
+  }
 
   /**
    * The contest information in this cast vote record.

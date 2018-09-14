@@ -418,55 +418,22 @@ public class ComparisonAudit implements PersistentEntity {
    */
   public final Integer estimatedSamplesToAudit() {
     if (my_estimated_recalculate_needed) {
+      LOGGER.debug("[estimatedSampleToAudit: recalculate needed]");
       recalculateSamplesToAudit();
     }
     return my_estimated_samples_to_audit;
   }
 
-
   /**
-   * FIXME Does the wrong thing
-   * TODO Do the right thing
    *
-   * FIXME We have to figure out how to keep track of the audit
-   * subsequence for a statewide contest. Right now, everything about
-   * the auditedPrefixLength is compartmentalized in a CountyDashboard.
-   * The dashboard has a subsequence from when we sliced up a larger
-   * sequence of CVR ids by county, but we need to find a way to
-   * replicate that view at a higher level.
+   * The number of one-vote and two-vote overstatements across the set
+   * of counties participating in this audit.
+   *
+   * TODO collect the number of 1 and 2 vote overstatements across
+   * participating counties.
    */
-  // public Integer auditedPrefixLength() {
-  //   return this.auditedPrefixLength;
-  // }
-
-  /** set by inc  **/
-  // public void incAuditedPrefixLength() {
-  //   this.auditedPrefixLength = this.auditedPrefixLength + 1;
-  // }
-
-  // public BigDecimal auditedSamples() {
-  //   // FIXME Originally, we were doing a county level audit. Now, we
-  //   // need to think about many counties, so we need to find out how
-  //   // many samples we've audited across all of the counties that
-  //   // aprticipate.
-
-  //   return this.auditedSamples;
-  // }
-
-  /** incAuditedSamples **/
-  // public void incAuditedSamples() {
-  //   // FIXME collect the number of 1&2 vote overstatements across
-  //   // participating counties.
-
-  //   this.auditedSamples = this.auditedSamples.add(new BigDecimal(1));
-  // }
-
-  /**  number of both one and two overstatements summed **/
-  public BigDecimal overstatements() {
-    // FIXME collect the number of 1&2 vote overstatements across
-    // participating counties.
-
-    return this.overstatements;
+  public BigDecimal getOverstatements() {
+    return this.overstatements; // FIXME
   }
 
   /** the number of ballots audited  **/
@@ -475,7 +442,6 @@ public class ComparisonAudit implements PersistentEntity {
   }
 
   /**
-
    * A scaling factor for the estimate, from 1 (when no samples have
    * been audited) upward.41
    The scaling factor grows as the ratio of
@@ -486,9 +452,9 @@ public class ComparisonAudit implements PersistentEntity {
     if (auditedSamples.equals(BigDecimal.ZERO)) {
       return BigDecimal.ONE;
     } else {
-      return BigDecimal.ONE.add(overstatements()
+      return BigDecimal.ONE.add(getOverstatements()
                                 .divide(auditedSamples, MathContext.DECIMAL128));
-      }
+    }
   }
 
   /**
@@ -507,17 +473,20 @@ public class ComparisonAudit implements PersistentEntity {
                                                                     my_one_vote_under_count,
                                                                     my_one_vote_over_count,
                                                                     my_two_vote_over_count);
-      LOGGER.debug("recalculateSamplesToAudit: my_optimistic_samples_to_audit = " + my_optimistic_samples_to_audit);
+      LOGGER.debug(String.format("[recalculateSamplesToAudit:"
+                                 + " my_optimistic_samples_to_audit=%d,"
+                                 + " computeOptimisticSamplesToAudit=%f]",
+                                 my_optimistic_samples_to_audit, optimistic));
+;
       my_optimistic_samples_to_audit = optimistic.intValue();
-      LOGGER.debug("recalculateSamplesToAudit: my_optimistic_samples_to_audit = " +  my_optimistic_samples_to_audit);
       my_optimistic_recalculate_needed = false;
     }
 
     if (my_one_vote_over_count + my_two_vote_over_count == 0) {
-      LOGGER.debug("Yes, my_one_vote_over_count + my_two_vote_over_count == 0");
+      LOGGER.debug("[recalculateSamplesToAudit: zero overcounts]");
       my_estimated_samples_to_audit = my_optimistic_samples_to_audit;
     } else {
-      LOGGER.debug("NO, my_one_vote_over_count + my_two_vote_over_count == 0");
+      LOGGER.debug("[recalculateSamplesToAudit: non-zero overcounts, using scaling factor]");
       my_estimated_samples_to_audit =
         BigDecimal.valueOf(my_optimistic_samples_to_audit)
         .multiply(scalingFactor())
@@ -982,9 +951,11 @@ public class ComparisonAudit implements PersistentEntity {
    */
   @Override
   public String toString() {
-    return  String.format("[ComparisonAudit %s: auditedSampleCount=%d, contestCvrIds=%s, status=%s, reason=%s]",
+    return  String.format("[ComparisonAudit %s: auditedSampleCount=%d, overstatements=%f,"
+                          + " contestCvrIds=%s, status=%s, reason=%s]",
                           this.contestResult().getContestName(),
                           this.getAuditedSampleCount(),
+                          this.getOverstatements(),
                           this.contestResult().getContestCVRIds(),
                           my_audit_status,
                           this.auditReason());
