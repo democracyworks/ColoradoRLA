@@ -778,7 +778,6 @@ public class CountyDashboard implements PersistentEntity {
    * @return the estimated number of samples to audit.
    */
   public Integer estimatedSamplesToAudit() {
-    // return my_estimated_samples_to_audit;
     // NOTE: there could be race conditions between audit boards across counties
     Optional<Integer> maybe = comparisonAudits().stream()
       .filter(ca -> ca.auditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
@@ -794,30 +793,21 @@ public class CountyDashboard implements PersistentEntity {
   }
 
   /**
-   * Sets the estimated number of samples to audit.
-   *
-   * @param the_estimated_samples_to_audit The estimated number of samples to audit.
-   */
-  public void setEstimatedSamplesToAudit(final int the_estimated_samples_to_audit) {
-    my_estimated_samples_to_audit = the_estimated_samples_to_audit;
-  }
-
-  /**
    * @return the optimistic number of samples to audit.
    */
   public Integer optimisticSamplesToAudit() {
-    // FIXME here is where we left off...
-    return my_optimistic_samples_to_audit;
-  }
-
-  /**
-   * Sets the optimistic number of samples to audit.
-   *
-   * @param the_optimistic_samples_to_audit The optimistic number of samples
-   * to audit.
-   */
-  public void setOptimisticSamplesToAudit(final int the_optimistic_samples_to_audit) {
-    my_optimistic_samples_to_audit = the_optimistic_samples_to_audit;
+    // NOTE: there could be race conditions between audit boards across counties
+    Optional<Integer> maybe = comparisonAudits().stream()
+      .filter(ca -> ca.auditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
+      .map(ca -> ca.optimisticSamplesToAudit())
+      .max(Comparator.naturalOrder());
+    // NOTE: we may be asking for this when we don't need to; when there are no
+    // audits setup yet
+    if (maybe.isPresent()) {
+      return maybe.get();
+    } else {
+      return 0;
+    }
   }
 
   /**

@@ -71,7 +71,7 @@ import us.freeandfair.corla.util.SuppressFBWarnings;
 // restored when the class is unserialized, because we intentionally made it
 // transient so it wouldn't be. Since that's what "transient" means.
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
-public class CastVoteRecord implements PersistentEntity, Serializable {
+public class CastVoteRecord implements PersistentEntity, Serializable, Comparable<CastVoteRecord> {
   /**
    * The serialVersionUID.
    */
@@ -507,4 +507,32 @@ public class CastVoteRecord implements PersistentEntity, Serializable {
       return result;
     }
   }
+
+  /**
+   * Compares this object to another.
+   *
+   * The sorting happens by the triple (scannerID(), batchID(), recordID()) and
+   * will return a negative, positive, or 0-valued result if this should come
+   * before, after, or at the same point as the other object, respectively.
+   *
+   * @return int
+   */
+  @Override
+  public int compareTo(final CastVoteRecord other) {
+    final int scanner = this.scannerID() - other.scannerID();
+
+    if (scanner != 0) {
+      return scanner;
+    }
+
+    final int batch = NaturalOrderComparator.INSTANCE.compare(
+                                                              this.batchID(), other.batchID());
+
+    if (batch != 0) {
+      return batch;
+    }
+
+    return this.recordID() - other.recordID();
+  }
+
 }

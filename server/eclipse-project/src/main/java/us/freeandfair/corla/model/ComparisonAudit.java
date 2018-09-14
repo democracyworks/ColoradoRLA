@@ -469,7 +469,7 @@ public class ComparisonAudit implements PersistentEntity {
     return this.overstatements;
   }
 
-  /** getter **/
+  /** the number of ballots audited  **/
   public Integer getAuditedSampleCount() {
     return this.my_audited_sample_count;
   }
@@ -506,13 +506,17 @@ public class ComparisonAudit implements PersistentEntity {
                                                                     my_one_vote_under_count,
                                                                     my_one_vote_over_count,
                                                                     my_two_vote_over_count);
+      LOGGER.debug("recalculateSamplesToAudit: my_optimistic_samples_to_audit = " + my_optimistic_samples_to_audit);
       my_optimistic_samples_to_audit = optimistic.intValue();
+      LOGGER.debug("recalculateSamplesToAudit: my_optimistic_samples_to_audit = " +  my_optimistic_samples_to_audit);
       my_optimistic_recalculate_needed = false;
     }
 
     if (my_one_vote_over_count + my_two_vote_over_count == 0) {
+      LOGGER.debug("Yes, my_one_vote_over_count + my_two_vote_over_count == 0");
       my_estimated_samples_to_audit = my_optimistic_samples_to_audit;
     } else {
+      LOGGER.debug("NO, my_one_vote_over_count + my_two_vote_over_count == 0");
       my_estimated_samples_to_audit =
         BigDecimal.valueOf(my_optimistic_samples_to_audit)
         .multiply(scalingFactor())
@@ -540,7 +544,7 @@ public class ComparisonAudit implements PersistentEntity {
                                                      final int oneOver,
                                                      final int twoOver) {
     return Audit.optimistic(getRiskLimit(), getDilutedMargin(), getGamma(),
-                            twoUnder, oneUnder, oneOver, twoOver);
+                            twoUnder, oneUnder, oneOver, twoOver) ;
   }
 
   /**
@@ -607,7 +611,15 @@ public class ComparisonAudit implements PersistentEntity {
   /** was the given cvrid selected for this contest? **/
   public boolean isCovering(Long cvrId) {
     // if this is an opportunistic audit, this will be empty
+    // LOGGER.warn("isCovering " + contestResult().getContestCVRIds());
+    // LOGGER.warn("isCovering " + cvrId);
+    // LOGGER.warn("isCovering " + contestResult().getContestCVRIds().contains(cvrId));
     return contestResult().getContestCVRIds().contains(cvrId);
+    // if (contestResult().getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS) {
+    //   return true;
+    // } else {
+    //   return false;
+    // }
   }
 
 

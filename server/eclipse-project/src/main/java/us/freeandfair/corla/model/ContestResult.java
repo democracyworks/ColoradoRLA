@@ -40,6 +40,7 @@ import us.freeandfair.corla.persistence.IntegerListConverter;
 import us.freeandfair.corla.persistence.LongListConverter;
 import us.freeandfair.corla.persistence.PersistentEntity;
 import us.freeandfair.corla.persistence.StringSetConverter;
+import us.freeandfair.corla.controller.BallotSelection.Selection;
 
 /**
  * A class representing the results for a contest across counties.
@@ -166,18 +167,6 @@ public class ContestResult implements PersistentEntity, Serializable {
    */
   @Column(name = "audit_reason")
   private AuditReason auditReason;
-
-
-  /** FIXME: this class is being used as a DTO right now **/
-  private transient Map<Long,List<Integer>> segments = new HashMap<>();
-
-  public void setSegments(Map<Long,List<Integer>> segments) {
-    this.segments = segments;
-  }
-
-  public Map<Long,List<Integer>> getSegments() {
-    return this.segments;
-  }
 
  /**
    * The sequence of random sample numbers for this contest in the order
@@ -308,6 +297,8 @@ public class ContestResult implements PersistentEntity, Serializable {
     return this.contestCVRIds;
   }
 
+  /** this DTO is here to maintain relationship to help start a round **/
+  public transient Selection selection;
 
   /**
    * @param county the county owning the contest you want

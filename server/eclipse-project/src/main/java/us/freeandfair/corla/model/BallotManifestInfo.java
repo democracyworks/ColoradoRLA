@@ -125,6 +125,7 @@ public class BallotManifestInfo implements PersistentEntity, Serializable {
 
   /**
    * @param start the adjusted sequence start
+   * this is like offset and limit of pages of a contest (multiple counties)
    */
   public void setUltimate(final Long start) {
     this.ultimateSequenceStart = start;
@@ -132,10 +133,18 @@ public class BallotManifestInfo implements PersistentEntity, Serializable {
   }
 
   /** from contest scope to county scope **/
-  public Integer unUltimate(final Integer rand) {
+  public Integer sequencePosition(final Integer rand) {
     // subtraction gives a 0-based offset, adding one gives us the 1-based
-    // ballot position
+    // ballot position in the file, row number of the file, a.k.a.: cvr.cvrNumber()
     return rand - this.ultimateSequenceStart.intValue() + 1;
+  }
+
+  /**
+   * translate a generated random number from contest to county scope, then
+   * from county to batch scope
+   **/
+  public Integer translateRand(final Integer rand) {
+    return ballotPosition(sequencePosition(rand));
   }
 
   /**
@@ -269,15 +278,15 @@ public class BallotManifestInfo implements PersistentEntity, Serializable {
   public String imprintedID(final Long rand) {
     return scannerID() + "-" +
            batchID() + "-" +
-           ballotPosition(rand).toString();
+           ballotPosition(rand.intValue()).toString();
   }
 
   /**
    * where the ballot sits in it's storage bin
    **/
-  public Long ballotPosition(final Long rand) {
+  public Integer ballotPosition(final Integer sequencePosition) {
     // position is the nth (1 based)
-    return rand - sequenceStart() + 1L;
+    return sequencePosition - sequenceStart().intValue() + 1;
   }
 
   /**

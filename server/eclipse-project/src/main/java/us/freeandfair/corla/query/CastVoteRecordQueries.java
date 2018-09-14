@@ -35,6 +35,7 @@ import us.freeandfair.corla.Main;
 import us.freeandfair.corla.model.CastVoteRecord;
 import us.freeandfair.corla.model.CastVoteRecord.RecordType;
 import us.freeandfair.corla.persistence.Persistence;
+import us.freeandfair.corla.controller.BallotSelection.Tribute;
 
 /**
  * Queries having to do with CastVoteRecord entities.
@@ -369,13 +370,20 @@ public final class CastVoteRecordQueries {
     return result;
   }
 
+  public static CastVoteRecord atPosition(Tribute tribute) {
+    return atPosition(tribute.countyId,
+                      tribute.scannerId,
+                      tribute.batchId,
+                      tribute.ballotPosition);
+  }
+
   /**
    * join query
    **/
   public static CastVoteRecord atPosition(final Long county_id,
                                           final Integer scanner_id,
                                           final String batch_id,
-                                          final Long position) {
+                                          final Integer position) {
     List<CastVoteRecord> result = null;
 
     try {
@@ -399,10 +407,29 @@ public final class CastVoteRecordQueries {
       case 1:
         return result.get(0);
       case 0:
-        return null;
+        // hmm performance no good, prevents bulk queries
+        return phantomRecord();
       default:
         Main.LOGGER.error("found more than one cvr atPosition: \n" + result);
         return result.get(0);
     }
   }
+
+  /** PHANTOM_RECORD conspiracy theory time **/
+  public static CastVoteRecord phantomRecord() {
+    final CastVoteRecord cvr = new CastVoteRecord(CastVoteRecord.RecordType.PHANTOM_RECORD,
+                                                  null,
+                                                  0L,
+                                                  0,
+                                                  0,
+                                                  0,
+                                                  "",
+                                                  0,
+                                                  "",
+                                                  "PHANTOM RECORD",
+                                                  null);
+    Persistence.save(cvr);
+    return cvr;
+  }
+
 }

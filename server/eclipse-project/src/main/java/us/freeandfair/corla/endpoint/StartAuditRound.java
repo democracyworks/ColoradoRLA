@@ -17,6 +17,8 @@ import static us.freeandfair.corla.asm.ASMState.DoSDashboardState.COMPLETE_AUDIT
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +41,8 @@ import us.freeandfair.corla.asm.ASMUtilities;
 import us.freeandfair.corla.asm.AuditBoardDashboardASM;
 import us.freeandfair.corla.asm.CountyDashboardASM;
 import us.freeandfair.corla.controller.BallotSelection;
+import us.freeandfair.corla.controller.BallotSelection.Segment;
+import us.freeandfair.corla.controller.BallotSelection.Selection;
 import us.freeandfair.corla.controller.ComparisonAuditController;
 import us.freeandfair.corla.controller.ContestCounter;
 import us.freeandfair.corla.json.SubmittedAuditRoundStart;
@@ -170,47 +174,43 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
   }
 
   /**
-   * Select random ballots for each targeted contest and group them by
-   * county id.
-   * @return a map of county to audit sequence.
+   * sets selection on each contestResult, the results of
+   * BallotSelection.randomSelection
    */
-  public Map<Long, List<Integer>> combineSegments(final String seed,
-                                                  final BigDecimal riskLimit,
-                                                  final List<ContestResult>
-                                                  targetedContestResults) {
-    final List<Map<Long, List<Integer>>> segments =
-      new ArrayList<Map<Long, List<Integer>>>();
+  public void makeSelections(final String seed,
+                             final BigDecimal riskLimit,
+                             final List<ContestResult>
+                             contestResults) {
 
-    for(final ContestResult contestResult: targetedContestResults) {
-      final BigDecimal optimistic =
-        Audit.optimistic(riskLimit, contestResult.getDilutedMargin());
+    for(final ContestResult contestResult: contestResults) {
+      // only make selection for targeted contests
+      // the only AuditReasons in play are county, state and opportunistic
+      if (contestResult.getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS) {
+        final BigDecimal optimistic =
+          Audit.optimistic(riskLimit, contestResult.getDilutedMargin());
+        final Integer startIndex = 0;
+        final Integer endIndex = optimistic.intValue() - 1;
 
-      LOGGER.info(String.format("Random ballot selection for: "
-                                + "[contestName= %s,"
-                                + " riskLimit= %f,"
-                                + " dilutedMargin= %f,"
-                                + " optimistic= %f]",
-                                contestResult.getContestName(),
-                                riskLimit,
-                                contestResult.getDilutedMargin(),
-                                optimistic));
-
-      // translate 1-based number-of-samples to audit(optimistic) to 0-based
-      // random number list index maximum
-      final Integer startIndex = 0;
-      final Integer endIndex = optimistic.intValue() - 1;
-
-      // FIXME: use a DTO instead of mutating the contestResult
-      // warning: cr and contestResult are the same object
-      ContestResult cr = BallotSelection.segmentsForContest(contestResult, seed,
-                                                            startIndex, endIndex);
-      segments.add(cr.getSegments());
+        Selection selection = BallotSelection.randomSelection(contestResult,
+                                                              seed,
+                                                              startIndex,
+                                                              endIndex);
+        selection.riskLimit = riskLimit;
+        contestResult.selection = selection;
+        contestResult.setContestCVRIds(selection.contestCVRIds());
+      } else {
+        Selection selection = new Selection();
+        selection.riskLimit = riskLimit;
+        contestResult.selection = selection;
+      }
     }
-
-    return segments.stream()
-      .reduce(new TreeMap<Long,List<Integer>>(), // to keep counties in order
-              (a, seg) -> BallotSelection.combineSegment(a, seg));
   }
+
+  // public Map<Long,List<Integer>> combineSegments(List<Map<Long, List<Integer>>> segments) {
+  //   return segments.stream()
+  //     .reduce(new TreeMap<Long,List<Integer>>(), // to keep counties in order
+  //             (a, seg) -> BallotSelection.combineSegment(a, seg));
+  // }
 
   /**
    * Starts the first audit round.
@@ -225,15 +225,26 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     final DoSDashboard dosdb = Persistence.getByID(DoSDashboard.ID, DoSDashboard.class);
     final BigDecimal riskLimit = dosdb.auditInfo().riskLimit();
     final String seed = dosdb.auditInfo().seed();
+    // TODO we're checking this later, but at that point we should have
+    // the ContestResults setup...
+    final Set<String> targetedContestNames =
+      dosdb.targetedContests()
+      .map(x -> x.name())
+      .collect(Collectors.toCollection(HashSet::new));
+
     final List<ContestResult> persistedContestResults = countAndSaveContests(dosdb.contestsToAudit());
 
     final List<ContestResult> targetedContestResults = persistedContestResults.stream()
       .filter(cr -> cr.getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
       .collect(Collectors.toList());
-    final Map<Long, List<Integer>> auditSegments = combineSegments(seed, riskLimit, targetedContestResults);
 
-    final Set<ComparisonAudit> comparisonAudits =
-      ComparisonAuditController.createAudits(riskLimit, persistedContestResults);
+    makeSelections(seed,
+                   riskLimit,
+                   persistedContestResults);
+
+    Set<ComparisonAudit> comparisonAudits = persistedContestResults.stream()
+      .map(cr -> ComparisonAuditController.createAudit(cr))
+      .collect(Collectors.toCollection(HashSet::new));
 
     LOGGER.info("comparisonAudits = " + comparisonAudits);
 
@@ -252,18 +263,25 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
           if (cdb.cvrFile() == null || cdb.manifestFile() == null) {
             LOGGER.info(COUNTY + cdb.id() + " missed the file upload deadline");
           } else {
-            // find the initial window
-            final List<Integer> subsequence = auditSegments.get(cdb.county().id());
+            // all contest that this county is participating in
             final Set<ComparisonAudit> auditsForCounty = comparisonAudits.stream()
               .filter(ca -> ca.isForCounty(cdb.county().id()))
               .collect(Collectors.toSet());
+            // intersection of county and contests
+            List<Segment> countyContestSegments = auditsForCounty.stream()
+              .map(ca -> (Segment)ca.contestResult().selection.forCounty(cdb.county().id()))
+              .collect(Collectors.toList());
+            // All contests for county and their selections combined into a
+            // single segment
+            final Segment segment = Selection.combineSegments(countyContestSegments);
 
             LOGGER.info("county = " + cdb.county() + " auditsForCounty = " + auditsForCounty);
-            LOGGER.info("county = " + cdb.county() + " subsequence = " + subsequence);
+            LOGGER.info("county = " + cdb.county() + " subsequence = " + segment.auditSequence());
             final boolean started =
               ComparisonAuditController.startFirstRound(cdb,
                                                         auditsForCounty,
-                                                        subsequence);
+                                                        segment.auditSequence(),
+                                                        segment.ballotSequence());
 
             if (started) {
               LOGGER.info(COUNTY + cdb.id() + " estimated to audit " +

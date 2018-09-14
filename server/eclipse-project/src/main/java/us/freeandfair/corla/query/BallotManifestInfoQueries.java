@@ -169,7 +169,7 @@ public final class BallotManifestInfoQueries {
      Find the batch(bmi) that would hold the sequence number given.
    */
   public static Optional<BallotManifestInfo>
-      holdingSequenceNumber(final Long rand, final Long countyId) {
+      holdingSequencePosition(final Long rand, final Long countyId) {
     Set<BallotManifestInfo> result = null;
 
     try {
