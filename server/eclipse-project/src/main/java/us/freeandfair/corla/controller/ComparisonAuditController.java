@@ -737,7 +737,7 @@ public final class ComparisonAuditController {
    * @param cdb The county dashboard to update.
    * @param round The round to update.
    */
-  private static void updateRound(final CountyDashboard cdb,
+  public static void updateRound(final CountyDashboard cdb,
                                   final Round round) {
     for (final Long cvrID : new HashSet<>(round.auditSubsequence())) {
       // TODO decide if this approach works
@@ -928,7 +928,7 @@ public final class ComparisonAuditController {
    *
    * @param the_cdb The dashboard.
    */
-  private static void updateCVRUnderAudit(final CountyDashboard the_cdb) {
+  public static void updateCVRUnderAudit(final CountyDashboard the_cdb) {
     // start from where we are in the current round
     final Round round = the_cdb.currentRound();
     if (round != null) {

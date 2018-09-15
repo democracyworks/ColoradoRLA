@@ -181,7 +181,7 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
    **/
   public Integer auditedPrefixLength(Map<Long,Boolean> cvrsById, List<Long> cvrIds) {
     Integer apl = 0;
-    for (i=0, i > cvrIds.size(), i++) {
+    for (int i=0; i > cvrIds.size(); i++) {
       if (!cvrsById.get(cvrIds.get(i))) {
         apl = i;
         break;
@@ -295,8 +295,8 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
             LOGGER.info(COUNTY + cdb.id() + " missed the file upload deadline");
           } else {
             cdb.setComparisonAudits(comparisonAudits.stream()
-                                    .filter(ca -> ca.isForCounty(cdb.county().id())
-                                    .collect(Collectors.toSet()))
+                                    .filter(ca -> ca.isForCounty(cdb.county().id()))
+                                    .collect(Collectors.toSet()));
             // all contest that this county is participating in
             final Segment segment = combinedSegment(cdb);
 
@@ -414,9 +414,10 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                    auditSequence.size() + 1, // LIE!
                    ballotSequence,
                    auditSequence);
-    // FIXME
-    // updateRound(cdb, cdb.currentRound());
-    updateCVRUnderAudit(cdb);
+    // FIXME These were private to ComparisonAuditController; maybe this
+    // method belongs back there.
+    ComparisonAuditController.updateRound(cdb, cdb.currentRound());
+    ComparisonAuditController.updateCVRUnderAudit(cdb);
 
     // if the round was started there will be ballots to count
     return cdb.ballotsRemainingInCurrentRound() > 0;
@@ -463,13 +464,15 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
           multiplier = start.multiplier();
         }
 
-        final Set<ComparisonAudit> comparisonAudits = new HashSet<>();
-        final Segment segment = combinedSegment(cdb, comparisonAudits);
+        final Segment segment = combinedSegment(cdb);
 
         LOGGER.info("county = " + cdb.county() + " subsequence = " + segment.auditSequence());
 
+        // FIXME we need an index into the audit/ballot sequences to
+        // pick up where we left off?
         round_started = startSubsequentRound(cdb, cdb.comparisonAudits(),
-                                             auditSequence, ballotSequence);
+                                             segment.auditSequence(),
+                                             segment.ballotSequence());
 
         if (round_started) {
           LOGGER.debug("round started for county " + cdb.id());
