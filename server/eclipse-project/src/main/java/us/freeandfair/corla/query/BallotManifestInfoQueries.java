@@ -220,6 +220,9 @@ public final class BallotManifestInfoQueries {
    * Get the number of ballots for a given set of counties.
    */
   public static Long totalBallots(final Set<Long> countyIds) {
+    if (countyIds.isEmpty()) {
+      return 0L;
+    }
     final Session s = Persistence.currentSession();
     final Query q =
       s.createNativeQuery("with county_ballots as " +

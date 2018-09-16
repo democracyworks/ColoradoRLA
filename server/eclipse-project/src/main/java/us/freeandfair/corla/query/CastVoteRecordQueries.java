@@ -346,7 +346,11 @@ public final class CastVoteRecordQueries {
    * or null if the query fails.
    */
   public static List<CastVoteRecord> get(final List<Long> the_ids) {
-    List<CastVoteRecord> result = null;
+    List<CastVoteRecord> result = new ArrayList<>();
+
+    if (the_ids.isEmpty()) {
+      return result;
+    }
 
     try {
       final Session s = Persistence.currentSession();
@@ -363,6 +367,7 @@ public final class CastVoteRecordQueries {
     }
     if (result == null) {
       Main.LOGGER.debug("found no CVRs with ids " + the_ids);
+      return new ArrayList<>();
     } else {
       Main.LOGGER.debug("found " + result.size() + "CVRs ");
     }

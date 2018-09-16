@@ -206,8 +206,10 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
         final BigDecimal optimistic =
           Audit.optimistic(riskLimit, contestResult.getDilutedMargin());
         final List<CastVoteRecord> cvrs = CastVoteRecordQueries.get(contestResult.getContestCVRIds());
+        LOGGER.warn(contestResult.getContestCVRIds());
         final Map cvrsById = new HashMap<>();
         for (final CastVoteRecord cvr : cvrs) {
+          LOGGER.warn(cvr);
           cvrsById.put(cvr.id(), cvr.isAudited());
         }
 

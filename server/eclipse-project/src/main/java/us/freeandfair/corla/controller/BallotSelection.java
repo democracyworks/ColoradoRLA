@@ -368,30 +368,8 @@ public final class BallotSelection {
     //
     // If a county has only one ballot for a contest, all the ballots from that
     // county are used to get a total number of ballots
-    return countyIds.stream()
-      .map(BallotManifestInfoQueries::maxSequence)
-      .map(l -> l.getAsLong())
-      .mapToLong(Number::longValue)
-      .sum();
+    return BallotManifestInfoQueries.totalBallots(countyIds);
   }
-
- //  /** PHANTOM_RECORD conspiracy theory time **/
- //  public static CastVoteRecord phantomRecord() {
- //    final CastVoteRecord cvr = new CastVoteRecord(CastVoteRecord.RecordType.PHANTOM_RECORD,
- //                                                  null,
- //                                                  0L,
- //                                                  0,
- //                                                  0,
- //                                                  0,
- //                                                  "",
- //                                                  0,
- //                                                  "",
- //                                                  "PHANTOM RECORD",
- //                                                  null);
- //    // TODO prevent the client from requesting info about this cvr
- //    cvr.setID(0L);
- //    return cvr;
- //  }
 
   /** render cvrs using BallotManifestInfo **/
   public static List<CVRToAuditResponse>
