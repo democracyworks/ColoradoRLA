@@ -338,21 +338,20 @@ public final class ComparisonAuditController {
   }
 
   /**
-   * Initializes the audit data for the specified county dashboard and starts its
-   * first audit round.
-   *
    * @param the_cdb The dashboard.
    * @return true if an audit round is started for the dashboard, false otherwise;
    * an audit round might not be started if there are no driving contests in the
    * county, or if the county needs to audit 0 ballots to meet the risk limit.
    */
-  public static ComparisonAudit createAudit(ContestResult contestResult) {
+  public static ComparisonAudit createAudit(final ContestResult contestResult,
+                                            final BigDecimal riskLimit) {
     ComparisonAudit ca = new ComparisonAudit(contestResult,
-                                             contestResult.selection.riskLimit,
+                                             riskLimit,
                                              contestResult.getDilutedMargin(),
                                              Audit.GAMMA,
                                              contestResult.getAuditReason());
-    // ca.setContestCVRIds(contestResult.selection.contestCVRIds());
+    LOGGER.debug(String.format("[createAudit: contestResult=%s, ComparisonAudit=%s]",
+                               contestResult, ca));
     Persistence.save(ca);
     return ca;
   }
@@ -360,26 +359,12 @@ public final class ComparisonAuditController {
   /**
    * do the part of setup for a county dashboard to starit their round.
    */
-  public static boolean startFirstRound(final CountyDashboard cdb,
-                                        final Set<ComparisonAudit> audits,
-                                        final List<Long> auditSequence,
-                                        final List<Long> ballotSequence) {
-    final Set<String> drivingContestNames = audits.stream()
-      .filter(ca -> ca.contestResult().getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
-      .map(ca -> ca.contestResult().getContestName())
-      .collect(Collectors.toSet());
-
-    LOGGER.info(String.format("Starting first Round for %s, drivingContests=%s", cdb.county(), drivingContestNames));
-    cdb.setAuditedPrefixLength(0);
-    cdb.setAuditedSampleCount(0);
-    cdb.setDrivingContestNames(drivingContestNames);
-
-    LOGGER.info("UNSAVED_CDB with audits: " + cdb.getAudits());
-    // cdb.setAudits(audits);// done elsewhere
-
-    Persistence.saveOrUpdate(cdb);
-    LOGGER.info("SAVED_CDB with audits: " + cdb.getAudits());
-
+  public static boolean startRound(final CountyDashboard cdb,
+                                   final Set<ComparisonAudit> audits,
+                                   final List<Long> auditSequence,
+                                   final List<Long> ballotSequence) {
+    LOGGER.info(String.format("Starting a round for %s, drivingContests=%s",
+                              cdb.county(), cdb.drivingContestNames()));
     cdb.startRound(ballotSequence.size(),
                    auditSequence.size(),
                    0,
@@ -392,131 +377,9 @@ public final class ComparisonAuditController {
     return cdb.ballotsRemainingInCurrentRound() > 0;
   }
 
-  public static boolean startSubsequentRound(final CountyDashboard cdb,
-                                             final Set<ComparisonAudit> audits,
-                                             final List<Long> auditSequence,
-                                             final List<Long> ballotSequence) {
-
-    return startSubsequentRound(cdb,
-                                audits,
-                                auditSequence,
-                                ballotSequence,
-                                0); // start at the beginning
-  }
-
-  public static boolean startSubsequentRound(final CountyDashboard cdb,
-                                             final Set<ComparisonAudit> audits,
-                                             final List<Long> auditSequence,
-                                             final List<Long> ballotSequence,
-                                             final Integer startIndex) {
-    cdb.startRound(ballotSequence.size(),
-                   auditSequence.size(),
-                   startIndex,
-                   ballotSequence,
-                   auditSequence);
-    updateRound(cdb, cdb.currentRound());
-    updateCVRUnderAudit(cdb);
-
-    // if the round was started there will be ballots to count
-    return cdb.ballotsRemainingInCurrentRound() > 0;
-  }
-
-  /**
-   * Starts a new round on the specified dashboard with the specified number
-   * of physical ballots.
-   *
-   * @param the_cdb The dashboard.
-   * @param the_round_length The count.
-   * @param the_multiplier The multiplier.
-   * @return true if a round is started, false otherwise (a round might not
-   * be started because the risk limit has already been achieved).
-   * @exception IllegalStateException if a round cannot be started from
-   * estimates because there are no previous rounds.
-   */
-  // FIXME: the_multiplier is unused.
-  public static boolean startNewRoundOfLength(final CountyDashboard the_cdb,
-                                              final int the_round_length,
-                                              final BigDecimal the_multiplier) {
-    final List<Round> rounds = the_cdb.rounds();
-    int start_index = 0;
-    if (rounds.isEmpty()) {
-      throw new IllegalArgumentException("no previous audit rounds");
-    } else {
-      final Round previous_round = rounds.get(rounds.size() - 1);
-      // we start the next round where the previous round actually ended
-      // in the audit sequence
-      start_index = previous_round.actualAuditedPrefixLength();
-    }
-
-    // the list of CVRs to audit, in audit sequence order
-    final List<CastVoteRecord> new_cvrs =
-        getCVRsInAuditSequence(the_cdb.county(), start_index, the_round_length);
-
-    List<CastVoteRecord> extra_cvrs = new_cvrs;
-    final SortedSet<CastVoteRecord> sorted_deduplicated_new_cvrs =
-        new TreeSet<>(new CastVoteRecord.BallotOrderComparator());
-    sorted_deduplicated_new_cvrs.addAll(new_cvrs);
-    while (!extra_cvrs.isEmpty() &&
-           sorted_deduplicated_new_cvrs.size() < the_round_length) {
-      extra_cvrs =
-          getCVRsInAuditSequence(the_cdb.county(), start_index + new_cvrs.size(),
-                                 the_round_length - sorted_deduplicated_new_cvrs.size());
-      new_cvrs.addAll(extra_cvrs);
-      sorted_deduplicated_new_cvrs.addAll(extra_cvrs);
-    }
-
-    // the IDs of the CVRs to audit, in audit sequence order
-    final List<Long> new_cvr_ids = new ArrayList<>();
-    for (final CastVoteRecord cvr : new_cvrs) {
-      new_cvr_ids.add(cvr.id());
-    }
-
-    // the unique IDs of the CVRs to audit
-    final Set<Long> unique_new_cvr_ids = new HashSet<>(new_cvr_ids);
-
-    for (final Round round : the_cdb.rounds()) {
-      for (final Long cvr_id : round.ballotSequence()) {
-        if (unique_new_cvr_ids.contains(cvr_id)) {
-          unique_new_cvr_ids.remove(cvr_id);
-          sorted_deduplicated_new_cvrs.remove(Persistence.getByID(cvr_id,
-                                                                  CastVoteRecord.class));
-        }
-      }
-    }
-
-    if (sorted_deduplicated_new_cvrs.isEmpty()) {
-      return false;
-    } else {
-      LOGGER.info("starting audit round " + (rounds.size() + 1) + " for county " +
-                  the_cdb.id() + " at audit sequence number " + start_index +
-                  " with " + sorted_deduplicated_new_cvrs.size() + " ballots to audit");
-      final List<Long> ballot_ids_to_audit = new ArrayList<>();
-      for (final CastVoteRecord cvr : sorted_deduplicated_new_cvrs) {
-        ballot_ids_to_audit.add(cvr.id());
-      }
-      the_cdb.startRound(sorted_deduplicated_new_cvrs.size(),
-                         start_index + new_cvrs.size(),
-                         start_index, ballot_ids_to_audit, new_cvr_ids);
-      updateRound(the_cdb, the_cdb.currentRound());
-      updateCVRUnderAudit(the_cdb);
-      return true;
-    }
-  }
-
-  /**
-   * Starts a new round on the specified dashboard, using the current error
-   * rates to estimate the necessary number of ballots to audit.
-   *
-   * @param cdb The dashboard.
-   * @param the_multiplier The multiplier.
-   * @return true if a round is started, false otherwise (a round might not
-   * be started because the risk limit has already been achieved).
-   * @exception IllegalStateException if a round cannot be started from
-   * estimates because there are no previous rounds or because there are no CVRs.
-   */
-  public static boolean
-      startNewRoundFromEstimates(final CountyDashboard cdb,
-                                 final BigDecimal the_multiplier) {
+  // FIXME remove this when we no longer need a reference!
+  public static boolean startNewRoundFromEstimates(final CountyDashboard cdb,
+                                                   final BigDecimal multiplier) {
     final OptionalLong cvr_count =
         BallotManifestInfoQueries.maxSequence(cdb.county().id());
     LOGGER.warn("cvr_count = " + cvr_count);

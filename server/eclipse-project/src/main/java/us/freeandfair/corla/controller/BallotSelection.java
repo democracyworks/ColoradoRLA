@@ -101,6 +101,8 @@ public final class BallotSelection {
     public ContestResult contestResult;
     public String seed;
     public BigDecimal riskLimit;
+    public Integer minIndex;
+    public Integer maxIndex;
 
     public static Segment combineSegments(Collection<Segment> segments) {
       return segments.stream()
