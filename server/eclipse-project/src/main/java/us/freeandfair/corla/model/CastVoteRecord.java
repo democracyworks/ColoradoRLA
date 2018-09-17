@@ -43,6 +43,7 @@ import javax.persistence.Version;
 import org.hibernate.annotations.Immutable;
 
 import us.freeandfair.corla.persistence.PersistentEntity;
+import us.freeandfair.corla.persistence.Persistence;
 import us.freeandfair.corla.util.NaturalOrderComparator;
 import us.freeandfair.corla.util.SuppressFBWarnings;
 
@@ -156,15 +157,10 @@ public class CastVoteRecord implements PersistentEntity, Serializable, Comparabl
   @Column(updatable = false, nullable = false)
   private String my_ballot_type;
 
-
-  /**
-   * The CVR to audit.
-   */
-  @OneToMany(fetch = FetchType.EAGER)
-  private Set<CVRAuditInfo> cvrAuditInfos;
-
   public boolean isAudited() {
-    return !this.cvrAuditInfos.isEmpty();
+    // this match is enforced in CVRAuditInfo's constructor
+    CVRAuditInfo cvrai = Persistence.getByID(my_id, CVRAuditInfo.class);
+    return cvrai != null;
   }
 
   /**

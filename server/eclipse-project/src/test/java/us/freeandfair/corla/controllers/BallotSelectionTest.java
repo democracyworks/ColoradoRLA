@@ -7,11 +7,13 @@ import us.freeandfair.corla.controller.ContestCounter;
 import us.freeandfair.corla.json.CVRToAuditResponse;
 import us.freeandfair.corla.model.BallotManifestInfo;
 import us.freeandfair.corla.model.CastVoteRecord;
+import us.freeandfair.corla.model.CVRAuditInfo;
 import us.freeandfair.corla.model.Choice;
 import us.freeandfair.corla.model.Contest;
 import us.freeandfair.corla.model.ContestResult;
 import us.freeandfair.corla.model.County;
 import us.freeandfair.corla.model.CountyContestResult;
+import us.freeandfair.corla.persistence.Persistence;
 
 import java.time.Instant;
 
@@ -36,11 +38,52 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.AfterTest;
 import static org.testng.Assert.*;
 
+import us.freeandfair.corla.query.Setup;
+
+@Test(groups = {"integration"})
 public class BallotSelectionTest {
 
   private BallotSelectionTest() {};
 
   private Boolean return_cvr = true;
+
+  @Test()
+  public void testAuditedPrefixLengthWithNone() {
+    List<Long> cvrIds = new ArrayList<>();
+    Integer result = BallotSelection.auditedPrefixLength(cvrIds);
+    assertEquals((int)0, (int)result);
+  }
+
+  @BeforeTest()
+  public void setUp() {
+    Setup.setProperties();
+    Persistence.beginTransaction();
+  }
+
+  @AfterTest()
+  public void tearDown() {
+    try {
+      Persistence.rollbackTransaction();
+    } catch (Exception e) {
+    }
+  }
+
+  @Test()
+  public void testAuditedPrefixLengthWithSome() {
+    CastVoteRecord cvr1 = fakeCVR(1);
+    CVRAuditInfo cai = new CVRAuditInfo(cvr1);
+    assertEquals(true, Persistence.saveOrUpdate(cvr1));
+    assertEquals(true, Persistence.saveOrUpdate(cai));
+    CastVoteRecord cvr2 = fakeCVR(2);
+    CVRAuditInfo cai2 = new CVRAuditInfo(cvr2);
+    assertEquals(true, Persistence.saveOrUpdate(cvr2));
+    assertEquals(true, Persistence.saveOrUpdate(cai2));
+    List<Long> cvrIds = new ArrayList<>();
+    cvrIds.add(cvr1.id());
+    cvrIds.add(cvr2.id());
+    Integer result = BallotSelection.auditedPrefixLength(cvrIds);
+    assertEquals((int)result, (int)2);
+  }
 
   @Test()
   public void testCombineSegmentsWorksWhenEmpty() {

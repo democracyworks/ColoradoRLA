@@ -183,23 +183,6 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
   }
 
   /**
-   * find the first cvr that is not audited and that is how far we are along in
-   * the audit, according to theory
-   **/
-  public Integer auditedPrefixLength(Map<Long,Boolean> cvrsById, List<Long> cvrIds) {
-    Integer apl = 0;
-
-    for (int i=0; i > cvrIds.size(); i++) {
-      if (!cvrsById.get(cvrIds.get(i))) {
-        apl = i;
-        break;
-      }
-    }
-
-    return apl;
-  }
-
-  /**
    * sets selection on each contestResult, the results of
    * BallotSelection.randomSelection
    */
@@ -212,19 +195,11 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
       if (contestResult.getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS) {
         final BigDecimal optimistic =
           Audit.optimistic(riskLimit, contestResult.getDilutedMargin());
-        final List<CastVoteRecord> cvrs = CastVoteRecordQueries.get(contestResult.getContestCVRIds());
-
-        LOGGER.debug(String.format("[makeSelections for ContestResult: contestName=%s, contestCVRIds=%s]",
+        LOGGER.debug(String.format("[makeSelections for ContestResult: contestName=%s, contestResult.contestCVRIds=%s]",
                                    contestResult.getContestName(),
                                    contestResult.getContestCVRIds()));
 
-        final Map cvrsById = new HashMap<>();
-        for (final CastVoteRecord cvr : cvrs) {
-          LOGGER.debug(String.format("[Adding selection: cvr=%s]", cvr));
-          cvrsById.put(cvr.id(), cvr.isAudited());
-        }
-
-        final Integer startIndex = auditedPrefixLength(cvrsById, contestResult.getContestCVRIds());
+        final Integer startIndex = BallotSelection.auditedPrefixLength(contestResult.getContestCVRIds());
         final Integer endIndex = optimistic.intValue() - 1;
 
         Selection selection = BallotSelection.randomSelection(contestResult,
@@ -232,10 +207,10 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                                                               startIndex,
                                                               endIndex);
         LOGGER.debug(String.format("[makeSelections selection=%s, "
-                                   + "contestCVRIds=%s, startIndex=%d, endIndex=%d, cvrsById=%s]",
+                                   + "selection.contestCVRIds=%s, startIndex=%d, endIndex=%d]",
                                    selection,
                                    selection.contestCVRIds(),
-                                   startIndex, endIndex, cvrsById));
+                                   startIndex, endIndex));
         selection.riskLimit = riskLimit;
         contestResult.selection = selection;
         contestResult.setContestCVRIds(selection.contestCVRIds());

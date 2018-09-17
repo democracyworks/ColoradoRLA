@@ -23,6 +23,8 @@ import us.freeandfair.corla.json.CVRToAuditResponse;
 import us.freeandfair.corla.model.BallotManifestInfo;
 import us.freeandfair.corla.model.CastVoteRecord;
 import us.freeandfair.corla.model.ContestResult;
+import us.freeandfair.corla.model.CVRAuditInfo;
+import us.freeandfair.corla.persistence.Persistence;
 import us.freeandfair.corla.query.BallotManifestInfoQueries;
 import us.freeandfair.corla.query.CastVoteRecordQueries;
 
@@ -343,6 +345,29 @@ public final class BallotSelection {
       last = bmi.ultimateSequenceEnd;
     }
     return bmis;
+  }
+
+
+  public static Integer auditedPrefixLength(List<Long> cvrIds) {
+
+    LOGGER.info(String.format("[auditedPrefixLength cvrIds=%s]", cvrIds));
+    final Map isAuditedById = new HashMap<>();
+    for (final Long cvrId: cvrIds) {
+      CVRAuditInfo cvrai = Persistence.getByID(cvrId, CVRAuditInfo.class);
+      Boolean isAudited = (Boolean)(cvrai != null);
+      LOGGER.info(String.format("[Adding selection: cvrId=%s isAudited=%s]", cvrId, isAudited));
+      isAuditedById.put(cvrId, isAudited);
+    }
+    Integer apl = 0;
+    for (int i=1; i < cvrIds.size(); i++) {
+      LOGGER.info(String.format("[isAudited= %s]", isAuditedById.get(cvrIds.get(i))));
+      if ((boolean)isAuditedById.get(cvrIds.get(i))) {
+        apl = i;
+        break;
+      }
+      apl = i;
+    }
+    return apl;
   }
 
   /**
