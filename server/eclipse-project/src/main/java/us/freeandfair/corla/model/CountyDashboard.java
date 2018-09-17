@@ -214,6 +214,17 @@ public class CountyDashboard implements PersistentEntity {
   private Set<ComparisonAudit> my_comparison_audits = new HashSet<>();
 
   /**
+   * The audit data.
+   */
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(name = "county_dashboard_to_comparison_audit",
+             joinColumns = { @JoinColumn(name = DASHBOARD_ID,
+                                         referencedColumnName = MY_ID) },
+             inverseJoinColumns = { @JoinColumn(name = "comparison_audit_id",
+                                                referencedColumnName = MY_ID) })
+  private Set<ComparisonAudit> audits = new HashSet<>();
+
+  /**
    * The audit investigation reports.
    */
   @ElementCollection(fetch = FetchType.LAZY)
@@ -523,8 +534,15 @@ public class CountyDashboard implements PersistentEntity {
   /**
    * @return the set of comparison audits being performed.
    */
+  public Set<ComparisonAudit> getAudits() {
+    return Collections.unmodifiableSet(audits);
+  }
+
+  /**
+   * @return the set of comparison audits being performed.
+   */
   public Set<ComparisonAudit> comparisonAudits() {
-    return Collections.unmodifiableSet(my_comparison_audits);
+    return Collections.unmodifiableSet(audits);
   }
 
   /**
@@ -532,9 +550,9 @@ public class CountyDashboard implements PersistentEntity {
    *
    * @param audits The comparison audits.
    */
-  public void setComparisonAudits(final Set<ComparisonAudit> audits) {
-    my_comparison_audits.clear();
-    my_comparison_audits.addAll(audits);
+  public void setAudits(final Set<ComparisonAudit> audits) {
+    this.audits.clear();
+    this.audits.addAll(audits);
   }
 
   /**
@@ -857,7 +875,7 @@ public class CountyDashboard implements PersistentEntity {
    * that have not achieved their risk limit to ENDED.
    */
   public void endAudits() {
-    for (final ComparisonAudit ca : my_comparison_audits) {
+    for (final ComparisonAudit ca : audits) {
       ca.endAudit();
     }
   }
@@ -867,7 +885,7 @@ public class CountyDashboard implements PersistentEntity {
    * based on whether they have achieved their risk limits.
    */
   public void updateAuditStatus() {
-    for (final ComparisonAudit ca : my_comparison_audits) {
+    for (final ComparisonAudit ca : audits) {
       ca.updateAuditStatus();
     }
   }

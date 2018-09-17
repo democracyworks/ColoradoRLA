@@ -57,6 +57,8 @@ import us.freeandfair.corla.model.DoSDashboard;
 import us.freeandfair.corla.persistence.Persistence;
 import us.freeandfair.corla.util.SuppressFBWarnings;
 import us.freeandfair.corla.query.CastVoteRecordQueries;
+import us.freeandfair.corla.query.ContestResultQueries;
+import us.freeandfair.corla.query.ComparisonAuditQueries;
 
 /**
  * Starts a new audit round for one or more counties.
@@ -123,22 +125,31 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     my_event.set(null);
   }
 
+  /** Count ContestResults, Create ComparisonAudits and assign them to CountyDashboards **/
+  public void initializeAuditData(DoSDashboard dosdb) {
+    final List<ContestResult> contestResults = initializeContests(dosdb.contestsToAudit());
+    final List<ComparisonAudit> comparisonAudits = initializeAudits(contestResults);
+    final List<CountyDashboard> cdbs = Persistence.getAll(CountyDashboard.class);
+    for (final CountyDashboard cdb : cdbs) {
+      initializeCountyDashboard(cdb, comparisonAudits);
+    }
+  }
+
   /**
    * {@inheritDoc}
    */
   @Override
   public String endpointBody(final Request the_request,
                              final Response the_response) {
+
+    final DoSDashboard dosdb = Persistence.getByID(DoSDashboard.ID, DoSDashboard.class);
     if (my_asm.get().currentState() == COMPLETE_AUDIT_INFO_SET) {
-      // the audit hasn't started yet, so start round 1 and ignore the parameters
-      // we were sent
-      my_event.set(DOS_START_ROUND_EVENT);
-      return startRoundOne(the_request, the_response);
-    } else {
-      // start a subsequent round
-      my_event.set(DOS_START_ROUND_EVENT);
-      return startSubsequentRound(the_request, the_response);
+      // this is the first round
+      // this needs to happen after uploading is done but before the audit is started
+      initializeAuditData(dosdb);
     }
+    my_event.set(DOS_START_ROUND_EVENT);
+    return startRound(the_request, the_response);
   }
 
   /**
@@ -195,10 +206,8 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
    * BallotSelection.randomSelection
    */
   public void makeSelections(final String seed,
-                             final BigDecimal riskLimit,
-                             final List<ContestResult>
-                             contestResults) {
-
+                             final BigDecimal riskLimit) {
+    final List<ContestResult> contestResults = Persistence.getAll(ContestResult.class);
     for(final ContestResult contestResult: contestResults) {
       // only make selection for targeted contests
       // the only AuditReasons in play are county, state and opportunistic
@@ -244,6 +253,51 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     return Selection.combineSegments(countyContestSegments);
   }
 
+  public List<ContestResult> initializeContests(Set<ContestToAudit> contestsToAudit) {
+    // maybe improve this check for "have all contests been counted?"
+    if (ContestResultQueries.count() > contestsToAudit.size()) {
+      final List<ContestResult> persistedContestResults = countAndSaveContests(contestsToAudit);
+      return persistedContestResults;
+    } else  {
+      return Persistence.getAll(ContestResult.class);
+    }
+  }
+
+  public List<ComparisonAudit> initializeAudits(List<ContestResult> contestResults) {
+    // fixme: just looking
+    final List<ContestResult> targetedContestResults = contestResults.stream()
+      .filter(cr -> cr.getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
+      .collect(Collectors.toList());
+
+    LOGGER.info("targetedContestResults = " + targetedContestResults);
+
+    // maybe improve this check for "have all ComparisonAudits been created?"
+    if (ComparisonAuditQueries.count() > 0) {
+      List<ComparisonAudit> comparisonAudits = contestResults.stream()
+        .map(cr -> ComparisonAuditController.createAudit(cr))
+        .collect(Collectors.toList());
+      return comparisonAudits;
+    } else {
+      return Persistence.getAll(ComparisonAudit.class);
+    }
+  }
+
+  public void initializeCountyDashboard(CountyDashboard cdb,
+                                        List<ComparisonAudit> comparisonAudits) {
+    final Set<String> drivingContestNames = comparisonAudits.stream()
+      .filter(ca -> ca.contestResult().getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
+      .map(ca -> ca.contestResult().getContestName())
+      .collect(Collectors.toSet());
+
+    cdb.setDrivingContestNames(drivingContestNames);
+
+    if (cdb.getAudits().isEmpty()) {
+      cdb.setAudits(comparisonAudits.stream()
+                    .filter(ca -> ca.isForCounty(cdb.county().id()))
+                    .collect(Collectors.toSet()));
+    }
+  }
+
   /**
    * Starts the first audit round.
    *
@@ -253,33 +307,14 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
    */
   // FIXME With some refactoring, we won't have excessive method length.
   @SuppressWarnings({"PMD.ExcessiveMethodLength"})
-  public String startRoundOne(final Request the_request, final Response the_response) {
+  public String startRound(final Request the_request, final Response the_response) {
     final DoSDashboard dosdb = Persistence.getByID(DoSDashboard.ID, DoSDashboard.class);
     final BigDecimal riskLimit = dosdb.auditInfo().riskLimit();
     final String seed = dosdb.auditInfo().seed();
-    // TODO we're checking this later, but at that point we should have
-    // the ContestResults setup...
-    final Set<String> targetedContestNames =
-      dosdb.targetedContests()
-      .map(x -> x.name())
-      .collect(Collectors.toCollection(HashSet::new));
+    // sets Selections on contestResults
+    makeSelections(seed, riskLimit);
 
-    final List<ContestResult> persistedContestResults = countAndSaveContests(dosdb.contestsToAudit());
-
-    final List<ContestResult> targetedContestResults = persistedContestResults.stream()
-      .filter(cr -> cr.getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
-      .collect(Collectors.toList());
-
-    makeSelections(seed,
-                   riskLimit,
-                   persistedContestResults);
-
-    LOGGER.info("targetedContestResults = " + targetedContestResults);
-    Set<ComparisonAudit> comparisonAudits = persistedContestResults.stream()
-      .map(cr -> ComparisonAuditController.createAudit(cr))
-      .collect(Collectors.toCollection(HashSet::new));
-
-    LOGGER.info("comparisonAudits = " + comparisonAudits);
+    // LOGGER.info("comparisonAudits = " + comparisonAudits);
 
     // Nothing in this try-block should know about HTTP requests / responses
     // update every county dashboard with a list of ballots to audit
@@ -296,18 +331,16 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
           if (cdb.cvrFile() == null || cdb.manifestFile() == null) {
             LOGGER.info(COUNTY + cdb.id() + " missed the file upload deadline");
           } else {
-            cdb.setComparisonAudits(comparisonAudits.stream()
-                                    .filter(ca -> ca.isForCounty(cdb.county().id()))
-                                    .collect(Collectors.toSet()));
-            // all contest that this county is participating in
+
+            // Selections for all contests that this county is participating in
             final Segment segment = combinedSegment(cdb);
 
             LOGGER.info("county = " + cdb.county() + " subsequence = " + segment.auditSequence());
             final boolean started =
-              ComparisonAuditController.startFirstRound(cdb,
-                                                        cdb.comparisonAudits(),
-                                                        segment.auditSequence(),
-                                                        segment.ballotSequence());
+              ComparisonAuditController.startRound(cdb,
+                                                   cdb.comparisonAudits(),
+                                                   segment.auditSequence(),
+                                                   segment.ballotSequence());
 
             if (started) {
               LOGGER.info(COUNTY + cdb.id() + " estimated to audit " +
@@ -398,32 +431,32 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
   }
 
 
-  /**
-   * Starts a subsequent audit round.
-   *
-   * @param the_request The HTTP request.
-   * @param the_response The HTTP response.
-   * @return the result for endpoint.
-   */
-  // FindBugs thinks there's a possible NPE, but there's not because
-  // badDataContents() would bail on the method before it happened.
-  public static boolean startSubsequentRound(final CountyDashboard cdb,
-                                             final Set<ComparisonAudit> audits,
-                                             final List<Long> auditSequence,
-                                             final List<Long> ballotSequence) {
-    cdb.startRound(ballotSequence.size(),
-                   auditSequence.size(),
-                   auditSequence.size() + 1, // LIE!
-                   ballotSequence,
-                   auditSequence);
-    // FIXME These were private to ComparisonAuditController; maybe this
-    // method belongs back there.
-    ComparisonAuditController.updateRound(cdb, cdb.currentRound());
-    ComparisonAuditController.updateCVRUnderAudit(cdb);
+  // /**
+  //  * Starts a subsequent audit round.
+  //  *
+  //  * @param the_request The HTTP request.
+  //  * @param the_response The HTTP response.
+  //  * @return the result for endpoint.
+  //  */
+  // // FindBugs thinks there's a possible NPE, but there's not because
+  // // badDataContents() would bail on the method before it happened.
+  // public static boolean startSubsequentRound(final CountyDashboard cdb,
+  //                                            final Set<ComparisonAudit> audits,
+  //                                            final List<Long> auditSequence,
+  //                                            final List<Long> ballotSequence) {
+  //   cdb.startRound(ballotSequence.size(),
+  //                  auditSequence.size(),
+  //                  auditSequence.size() + 1, // LIE!
+  //                  ballotSequence,
+  //                  auditSequence);
+  //   // FIXME These were private to ComparisonAuditController; maybe this
+  //   // method belongs back there.
+  //   ComparisonAuditController.updateRound(cdb, cdb.currentRound());
+  //   ComparisonAuditController.updateCVRUnderAudit(cdb);
 
-    // if the round was started there will be ballots to count
-    return cdb.ballotsRemainingInCurrentRound() > 0;
-  }
+  //   // if the round was started there will be ballots to count
+  //   return cdb.ballotsRemainingInCurrentRound() > 0;
+  // }
 
   @SuppressFBWarnings("NP_NULL_ON_SOME_PATH")
   public String startSubsequentRound(final Request the_request, final Response the_response) {
@@ -472,9 +505,10 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
 
         // FIXME we need an index into the audit/ballot sequences to
         // pick up where we left off?
-        round_started = startSubsequentRound(cdb, cdb.comparisonAudits(),
-                                             segment.auditSequence(),
-                                             segment.ballotSequence());
+        round_started = ComparisonAuditController.startSubsequentRound(cdb,
+                                                                       cdb.comparisonAudits(),
+                                                                       segment.auditSequence(),
+                                                                       segment.ballotSequence());
 
         if (round_started) {
           LOGGER.debug("round started for county " + cdb.id());

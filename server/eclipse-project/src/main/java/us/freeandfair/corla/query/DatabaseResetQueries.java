@@ -51,6 +51,7 @@ public final class DatabaseResetQueries {
         "audit_intermediate_report",
         "audit_investigation_report",
         "ballot_manifest_info",
+        "county_dashboard_to_comparison_audit",
         "counties_to_contest_results",
         "contests_to_contest_results",
         "contest_choice",

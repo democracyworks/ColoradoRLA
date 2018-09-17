@@ -373,10 +373,12 @@ public final class ComparisonAuditController {
     cdb.setAuditedPrefixLength(0);
     cdb.setAuditedSampleCount(0);
     cdb.setDrivingContestNames(drivingContestNames);
-    cdb.setComparisonAudits(audits);
+
+    LOGGER.info("UNSAVED_CDB with audits: " + cdb.getAudits());
+    // cdb.setAudits(audits);// done elsewhere
 
     Persistence.saveOrUpdate(cdb);
-    LOGGER.info("SAVED_CDB with audits: " + cdb.comparisonAudits());
+    LOGGER.info("SAVED_CDB with audits: " + cdb.getAudits());
 
     cdb.startRound(ballotSequence.size(),
                    auditSequence.size(),
@@ -394,9 +396,22 @@ public final class ComparisonAuditController {
                                              final Set<ComparisonAudit> audits,
                                              final List<Long> auditSequence,
                                              final List<Long> ballotSequence) {
+
+    return startSubsequentRound(cdb,
+                                audits,
+                                auditSequence,
+                                ballotSequence,
+                                0); // start at the beginning
+  }
+
+  public static boolean startSubsequentRound(final CountyDashboard cdb,
+                                             final Set<ComparisonAudit> audits,
+                                             final List<Long> auditSequence,
+                                             final List<Long> ballotSequence,
+                                             final Integer startIndex) {
     cdb.startRound(ballotSequence.size(),
                    auditSequence.size(),
-                   auditSequence.size() + 1, // LIE!
+                   startIndex,
                    ballotSequence,
                    auditSequence);
     updateRound(cdb, cdb.currentRound());

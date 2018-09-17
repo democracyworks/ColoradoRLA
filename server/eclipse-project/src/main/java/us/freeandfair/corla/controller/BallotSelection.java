@@ -174,6 +174,8 @@ public final class BallotSelection {
     selection.domainSize = domainSize; //posterity
     selection.generatedNumbers = generatedNumbers; //posterity
     selection.seed = seed; //posterity
+    selection.minIndex = minIndex;
+    selection.maxIndex = maxIndex;
 
     LOGGER.info("randomSelection: selection= " + selection);
     // get the CVRs from the theoretical
