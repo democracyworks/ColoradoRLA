@@ -357,7 +357,9 @@ public final class ComparisonAuditController {
   }
 
   /**
-   * do the part of setup for a county dashboard to starit their round.
+   * Do the part of setup for a county dashboard to start their round.
+   * - updateRound
+   * - updateCVRUnderAudit
    */
   public static boolean startRound(final CountyDashboard cdb,
                                    final Set<ComparisonAudit> audits,
@@ -632,17 +634,9 @@ public final class ComparisonAuditController {
       } else if (cvrai.acvr() != null) {
         // update the round statistics as necessary
         //
-        // FIXME we will need to share ComparisonAudits for some
-        // contests across many counties. This means we have to think
-        // about synchronization as we deal with adding discrepancies
-        // and recalculating things.
-        //
-        // FIXME this might also mean that we need to expand the idea of
-        // a round outside of a county? maybe? maybe not? Each
-        // ContestResult would have its own ComparisonAudit with some
-        // audit state, so maybe we don't....we can advance a county to
-        // another round if any of the audits have a risk limit that
-        // hasn't been achieved.
+        // TODO think about synchronization. comparison audits are
+        // viewable / affected by many counties.
+
         for (final ComparisonAudit ca : cdb.comparisonAudits()) {
           auditReasons.put(ca.contestResult(), ca.auditReason());
           if (!discrepancies.contains(ca.auditReason()) &&
@@ -650,6 +644,7 @@ public final class ComparisonAuditController {
             discrepancies.add(ca.auditReason());
           }
         }
+
         for (final CVRContestInfo ci : cvrai.acvr().contestInfo()) {
           final AuditReason reason = auditReasons.get(ci.contest());
           if (ci.consensus() == ConsensusValue.NO) {
@@ -804,29 +799,35 @@ public final class ComparisonAuditController {
    * in between, and extends the sequence of ballots to audit if it
    * reaches the end and the audit is not concluded.
    *
-   * @param the_cdb The dashboard.
+   * @param cdb The dashboard.
    */
-  public static void updateCVRUnderAudit(final CountyDashboard the_cdb) {
+  public static void updateCVRUnderAudit(final CountyDashboard cdb) {
     // start from where we are in the current round
-    final Round round = the_cdb.currentRound();
+    final Round round = cdb.currentRound();
+
     if (round != null) {
       final Set<Long> checked_ids = new HashSet<>();
       int index = round.actualAuditedPrefixLength() - round.startAuditedPrefixLength();
+
       while (index < round.auditSubsequence().size()) {
         final Long cvr_id = round.auditSubsequence().get(index);
         if (!checked_ids.contains(cvr_id)) {
           checked_ids.add(cvr_id);
+
           final CVRAuditInfo cai = Persistence.getByID(cvr_id, CVRAuditInfo.class);
+
           if (cai.acvr() == null) {
-            break;
+            break;              // ok, so this hasn't been audited yet.
           } else {
-            final int audit_count = audit(the_cdb, cai, false);
-            the_cdb.setAuditedSampleCount(the_cdb.auditedSampleCount() + audit_count);
+            final int audit_count = audit(cdb, cai, false);
+            cdb.setAuditedSampleCount(cdb.auditedSampleCount() + audit_count);
           }
         }
         index = index + 1;
       }
-      the_cdb.setAuditedPrefixLength(index + round.startAuditedPrefixLength());
+      // FIXME audited prefix length might not mean the same things that
+      // it once meant.
+      cdb.setAuditedPrefixLength(index + round.startAuditedPrefixLength());
     }
   }
 

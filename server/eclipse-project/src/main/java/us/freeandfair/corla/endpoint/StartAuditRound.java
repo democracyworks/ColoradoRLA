@@ -130,6 +130,98 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     }
   }
 
+  public List<ContestResult> initializeContests(Set<ContestToAudit> cta) {
+    final List<ContestResult> countedCRs = countAndSaveContests(cta);
+    LOGGER.debug(String.format("[initializeContests: cta=%s, countedCRs=%s]",
+                               cta, countedCRs));
+    return countedCRs;
+  }
+
+  /**
+   * A debugging helper that is liberal with its definition of
+   * "targeted".
+   *
+   * @return a filtered list by whatever target means today.
+   */
+  public List<ContestResult> targeted(final List<ContestResult> crs) {
+    return crs.stream()
+      .filter(cr -> cr.getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
+      .collect(Collectors.toList());
+  }
+
+  /**
+   * Warning: Contains Side Effects
+   */
+  public List<ComparisonAudit> initializeAudits(final List<ContestResult> contestResults,
+                                                final BigDecimal riskLimit) {
+    List<ComparisonAudit> comparisonAudits = contestResults.stream()
+      .map(cr -> ComparisonAuditController.createAudit(cr, riskLimit))
+      .collect(Collectors.toList());
+
+    LOGGER.debug(String.format("[initializeAudits: contestResults=%s, "
+                               + "targetedContestResults=%s, comparisonAudits=%s]",
+                               contestResults, targeted(contestResults), comparisonAudits));
+
+    return comparisonAudits;
+  }
+
+  /**
+   * Setup a county dashboard. Puts the dashboard into the
+   * COUNTY_START_AUDIT_EVENT state.
+   *
+   * Puts the right set of comparison audits on the cdb.
+   *
+   * Builds comparison audits for the driving contests.
+   */
+  public void initializeCountyDashboard(final CountyDashboard cdb,
+                                        final List<ComparisonAudit> comparisonAudits) {
+    // FIXME extract-fn
+    final Set<String> drivingContestNames = comparisonAudits.stream()
+      .filter(ca -> ca.contestResult().getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
+      .map(ca -> ca.contestResult().getContestName())
+      .collect(Collectors.toSet());
+
+    cdb.setAuditedSampleCount(0);
+    cdb.setAuditedPrefixLength(0);
+    cdb.setDrivingContestNames(drivingContestNames);
+
+    // FIXME extract-fn
+    Set<ComparisonAudit> countyAudits = new HashSet<>();
+    if (cdb.getAudits().isEmpty()) {
+      countyAudits =
+        comparisonAudits.stream()
+        .filter(ca -> ca.isForCounty(cdb.county().id()))
+        .collect(Collectors.toSet());
+      cdb.setAudits(countyAudits);
+    }
+
+    final CountyDashboardASM countyDashboardASM = ASMUtilities.asmFor(CountyDashboardASM.class, String.valueOf(cdb.id()));
+    final AuditBoardDashboardASM auditDashboardASM = ASMUtilities.asmFor(AuditBoardDashboardASM.class, String.valueOf(cdb.id()));
+
+    // FIXME I'd like this check to be more state-based. Anyone that
+    // isn't in the state of BALLOT_MANIFEST_CVRS_OK would be considered
+    // to miss the deadline? That's the one that means READY_TO_GO!
+    if (cdb.cvrFile() == null || cdb.manifestFile() == null) {
+      // the county missed its deadline, nothing to start, so let's mark it so
+      LOGGER.info(String.format("[%s County missed the file upload deadline.]",
+                                cdb.county().name()));
+
+      // FIXME we should save the auditboardASM, right?
+      auditDashboardASM.stepEvent(NO_CONTESTS_TO_AUDIT_EVENT);
+      ASMUtilities.save(auditDashboardASM);
+      // ASMUtilities.step(NO_CONTESTS_TO_AUDIT_EVENT, AuditBoardDashboardASM.class,
+      //                   String.valueOf(cdb.id()));
+    }
+
+    countyDashboardASM.stepEvent(COUNTY_START_AUDIT_EVENT);
+    ASMUtilities.save(countyDashboardASM);
+
+    LOGGER.debug(String.format("[initializeCountyDashboard: "
+                               + " cdb=%s, comparisonAudits=%s, "
+                               + " drivingContestNames=%s, countyAudits=%s]",
+                               cdb, comparisonAudits, drivingContestNames, countyAudits));
+  }
+
   /**
    * {@inheritDoc}
    */
@@ -236,83 +328,6 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
       .map(ca -> (Segment)ca.contestResult().selection.forCounty(cdb.county().id()))
       .collect(Collectors.toList());
     return Selection.combineSegments(countyContestSegments);
-  }
-
-  public List<ContestResult> initializeContests(Set<ContestToAudit> contestsToAudit) {
-    LOGGER.debug(String.format("[initializeContests: contestsToAudit=%s]", contestsToAudit));
-    // FIXME improve this check for "have all contests been counted?"
-    final List<ContestResult> persistedContestResults = countAndSaveContests(contestsToAudit);
-    LOGGER.debug(String.format("[initializeContests: persistedContestResults=%s]",
-                               persistedContestResults));
-    return persistedContestResults;
-  }
-
-  /**
-   * Warning: Contains Side Effects
-   */
-  public List<ComparisonAudit> initializeAudits(final List<ContestResult> contestResults,
-                                                final BigDecimal riskLimit) {
-    // fixme: just looking
-    final List<ContestResult> targetedContestResults = contestResults.stream()
-      .filter(cr -> cr.getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
-      .collect(Collectors.toList());
-
-    List<ComparisonAudit> comparisonAudits = contestResults.stream()
-      .map(cr -> ComparisonAuditController.createAudit(cr, riskLimit))
-      .collect(Collectors.toList());
-    LOGGER.debug(String.format("[initializeAudits: contestResults=%s, targetedContestResults=%s, comparisonAudits=%s]",
-                               contestResults, targetedContestResults, comparisonAudits));
-
-    return comparisonAudits;
-  }
-
-  /**
-   * Setup a county dashboard. Puts the dashboard into the
-   * COUNTY_START_AUDIT_EVENT state.
-   *
-   * Puts the right set of comparison audits on the cdb.
-   *
-   * Builds comparison audits for the driving contests.
-   */
-  public void initializeCountyDashboard(final CountyDashboard cdb,
-                                        final List<ComparisonAudit> comparisonAudits) {
-    final Set<String> drivingContestNames = comparisonAudits.stream()
-      .filter(ca -> ca.contestResult().getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS)
-      .map(ca -> ca.contestResult().getContestName())
-      .collect(Collectors.toSet());
-
-    cdb.setAuditedSampleCount(0);
-    cdb.setAuditedPrefixLength(0);
-    cdb.setDrivingContestNames(drivingContestNames);
-
-    Set<ComparisonAudit> countyAudits = new HashSet<>();
-    if (cdb.getAudits().isEmpty()) {
-      countyAudits =
-        comparisonAudits.stream()
-        .filter(ca -> ca.isForCounty(cdb.county().id()))
-        .collect(Collectors.toSet());
-      cdb.setAudits(countyAudits);
-    }
-
-    final CountyDashboardASM countyDashboardASM =
-      ASMUtilities.asmFor(CountyDashboardASM.class, String.valueOf(cdb.id()));
-
-    if (cdb.cvrFile() == null || cdb.manifestFile() == null) {
-      // the county missed its deadline
-      LOGGER.info(String.format("[County %s missed the file upload deadline" +
-                                " moving to COUNTY_DEADLINE_MISSED_EVENT]",
-                                cdb.county()));
-      ASMUtilities.step(NO_CONTESTS_TO_AUDIT_EVENT, AuditBoardDashboardASM.class,
-                        String.valueOf(cdb.id()));
-    }
-
-    countyDashboardASM.stepEvent(COUNTY_START_AUDIT_EVENT);
-    ASMUtilities.save(countyDashboardASM);
-
-    LOGGER.debug(String.format("[initializeCountyDashboard: "
-                               + " cdb=%s, comparisonAudits=%s, "
-                               + " drivingContestNames=%s, countyAudits=%s]",
-                               cdb, comparisonAudits, drivingContestNames, countyAudits));
   }
 
   /**

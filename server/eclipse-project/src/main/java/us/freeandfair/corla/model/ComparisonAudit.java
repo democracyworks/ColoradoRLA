@@ -951,8 +951,9 @@ public class ComparisonAudit implements PersistentEntity {
    */
   @Override
   public String toString() {
-    return  String.format("[ComparisonAudit %s: auditedSampleCount=%d, overstatements=%f,"
-                          + " contestCvrIds=%s, status=%s, reason=%s]",
+    return  String.format("[ComparisonAudit for %s: counties=%s, auditedSampleCount=%d, overstatements=%f,"
+                          + " contestResult.contestCvrIds=%s, status=%s, reason=%s]",
+                          this.contestResult().getCounties(),
                           this.contestResult().getContestName(),
                           this.getAuditedSampleCount(),
                           this.getOverstatements(),
