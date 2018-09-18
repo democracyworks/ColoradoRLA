@@ -74,25 +74,46 @@ public class BallotSelectionTest {
     CastVoteRecord cvr2 = fakeCVR(2);
     CastVoteRecord cvr3 = fakeCVR(3);
     CastVoteRecord cvr4 = fakeCVR(4);
+    CastVoteRecord cvr5 = fakeCVR(5);
+    CastVoteRecord cvr6 = fakeCVR(6);
+    CastVoteRecord cvr7 = fakeCVR(7);
+    CastVoteRecord cvr8 = fakeCVR(8);
     Persistence.saveOrUpdate(cvr1);
     Persistence.saveOrUpdate(cvr2);
     Persistence.saveOrUpdate(cvr3);
     Persistence.saveOrUpdate(cvr4);
+    Persistence.saveOrUpdate(cvr5);
+    Persistence.saveOrUpdate(cvr6);
+    Persistence.saveOrUpdate(cvr7);
+    Persistence.saveOrUpdate(cvr8);
 
     CVRAuditInfo cai1 = new CVRAuditInfo(cvr1);
     CVRAuditInfo cai2 = new CVRAuditInfo(cvr2);
+    CVRAuditInfo cai3 = new CVRAuditInfo(cvr3);
     CVRAuditInfo cai4 = new CVRAuditInfo(cvr4);
+    CVRAuditInfo cai5 = new CVRAuditInfo(cvr5);
+    CVRAuditInfo cai7 = new CVRAuditInfo(cvr7);
+    CVRAuditInfo cai8 = new CVRAuditInfo(cvr8);
+
     Persistence.saveOrUpdate(cai1);
     Persistence.saveOrUpdate(cai2);
+    Persistence.saveOrUpdate(cai3);
     Persistence.saveOrUpdate(cai4);
+    Persistence.saveOrUpdate(cai5);
+    Persistence.saveOrUpdate(cai7);
+    Persistence.saveOrUpdate(cai8);
 
     List<Long> cvrIds = new ArrayList<>();
     cvrIds.add(cvr1.id());
     cvrIds.add(cvr2.id());
     cvrIds.add(cvr3.id());
     cvrIds.add(cvr4.id());
+    cvrIds.add(cvr5.id());
+    cvrIds.add(cvr6.id());
+    cvrIds.add(cvr7.id());
+    cvrIds.add(cvr8.id());
     Integer result = BallotSelection.auditedPrefixLength(cvrIds);
-    assertEquals((int)result, (int)2);
+    assertEquals((int)result, (int)5);
   }
 
   @Test()

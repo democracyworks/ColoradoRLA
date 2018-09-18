@@ -372,6 +372,7 @@ public final class ComparisonAuditController {
                    0,
                    ballotSequence,
                    auditSequence);
+    // FIXME it appears these two must happen in this order.
     updateRound(cdb, cdb.currentRound());
     updateCVRUnderAudit(cdb);
 
@@ -494,6 +495,7 @@ public final class ComparisonAuditController {
                   cdb.id() + ", cvr " +
                   the_cvr_under_audit.id() + " not under audit");
     } else if (checkACVRSanity(the_cvr_under_audit, the_audit_cvr)) {
+      LOGGER.debug("[submitAuditCVR: ACVR seems sane]");
       // if the record is the current CVR under audit, or if it hasn't been
       // audited yet, we can just process it
       if (info.acvr() == null) {
@@ -501,12 +503,14 @@ public final class ComparisonAuditController {
         // they might be out of order, but that's OK because we have strong
         // requirements about finishing rounds before looking at results as
         // final and valid
+        LOGGER.debug("[submitAuditCVR: ACVR is null, creating]");
         info.setACVR(the_audit_cvr);
         final int new_count = audit(cdb, info, true);
         cdb.addAuditedBallot();
         cdb.setAuditedSampleCount(cdb.auditedSampleCount() + new_count);
       } else {
         // the record has been audited before, so we need to "unaudit" it
+        LOGGER.debug("[submitAuditCVR: ACVR is seen, un/reauditing]");
         final int former_count = unaudit(cdb, info);
         info.setACVR(the_audit_cvr);
         final int new_count = audit(cdb, info, true);

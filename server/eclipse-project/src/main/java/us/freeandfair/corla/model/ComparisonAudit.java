@@ -371,11 +371,16 @@ public class ComparisonAudit implements PersistentEntity {
     }
 
     if (my_optimistic_samples_to_audit - my_audited_sample_count <= 0) {
+      LOGGER.debug("[updateAuditStatus: RISK_LIMIT_ACHIEVED!]");
       my_audit_status = AuditStatus.RISK_LIMIT_ACHIEVED;
     } else {
       // risk limit has not been achieved
       // note that it _is_ possible to go from RISK_LIMIT_ACHIEVED to
       // IN_PROGRESS if a sample or set of samples is "unaudited"
+      if (my_audit_status.equals(AuditStatus.RISK_LIMIT_ACHIEVED)) {
+        LOGGER.warn("[updateAuditStatus: Moving from RISK_LIMIT_ACHIEVED -> IN_PROGRESS!]");
+      }
+
       my_audit_status = AuditStatus.IN_PROGRESS;
     }
   }
@@ -953,8 +958,8 @@ public class ComparisonAudit implements PersistentEntity {
   public String toString() {
     return  String.format("[ComparisonAudit for %s: counties=%s, auditedSampleCount=%d, overstatements=%f,"
                           + " contestResult.contestCvrIds=%s, status=%s, reason=%s]",
-                          this.contestResult().getCounties(),
                           this.contestResult().getContestName(),
+                          this.contestResult().getCounties(),
                           this.getAuditedSampleCount(),
                           this.getOverstatements(),
                           this.contestResult().getContestCVRIds(),

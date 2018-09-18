@@ -347,35 +347,33 @@ public final class BallotSelection {
     return bmis;
   }
 
+  /**
+   * How much of an audit sequence have we checked?
+   *
+   * @param cvrIds A list of IDs to check. Presumably the unsorted
+   * original sampling.
+   * @return the number of ballot cards that have been audited
+   */
   public static Integer auditedPrefixLength(List<Long> cvrIds) {
+    // FIXME extract-fn, then use
+    // Map <Long, Boolean> isAuditedById = checkAudited(cvrIds);
     Map <Long, Boolean> isAuditedById = new HashMap<>();
-
     for (final Long cvrId: cvrIds) {
       CVRAuditInfo cvrai = Persistence.getByID(cvrId, CVRAuditInfo.class);
       boolean isAudited = (cvrai != null);
-      LOGGER.info(String.format("[auditedPrefixLength finding %d to be isAudited=%b]", cvrId, isAudited));
       isAuditedById.put(cvrId, isAudited);
     }
 
-    LOGGER.info(String.format("[auditedPrefixLength cvrIds=%s, isAuditedById=%s]",
-                              cvrIds, isAuditedById));
-    Integer apl = 0;
-
+    Integer idx = 0;
     for (int i=0; i < cvrIds.size(); i++) {
       boolean audited = isAuditedById.get(cvrIds.get(i));
-
-      LOGGER.info(String.format("[cvrIds.get(%d)=%d, audited=%b]", i, cvrIds.get(i), audited));
-
       if (audited) {
-        LOGGER.info(String.format("[audited apl=%d, i=%d", apl, i));
-        apl = i;
+        idx = i;
       } else { break; }
-
-      LOGGER.info(String.format("[auditedPrefixLength end: apl=%d, i=%d]", apl, i));
-      apl = i + 1;
     }
-
-    return apl;
+    LOGGER.debug(String.format("[auditedPrefixLength: isAuditedById=%s, apl=%d]",
+                                isAuditedById, idx));
+    return idx + 1;
   }
 
   /**

@@ -44,6 +44,9 @@ import javax.persistence.OrderColumn;
 import javax.persistence.Table;
 import javax.persistence.Version;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import us.freeandfair.corla.model.ImportStatus.ImportState;
 import us.freeandfair.corla.persistence.AuditSelectionIntegerMapConverter;
 import us.freeandfair.corla.persistence.PersistentEntity;
@@ -63,6 +66,12 @@ import us.freeandfair.corla.persistence.StringSetConverter;
     "PMD.ExcessivePublicCount", "PMD.CyclomaticComplexity"})
 // note: county dashboard is not serializable because it contains an uploaded file
 public class CountyDashboard implements PersistentEntity {
+  /**
+   * Class-wide logger
+   */
+  public static final Logger LOGGER =
+      LogManager.getLogger(CountyDashboard.class);
+
   /**
    * The "text" constant.
    */
@@ -495,6 +504,7 @@ public class CountyDashboard implements PersistentEntity {
                                   the_ballots_to_audit,
                                   the_audit_subsequence);
     my_rounds.add(round);
+    LOGGER.debug("[startRound ends]");
   }
 
   /**
@@ -518,6 +528,7 @@ public class CountyDashboard implements PersistentEntity {
    * @return the number of ballots remaining in the current round, or 0
    * if there is no current round.
    */
+  // FIXME this is broken; round's expected and actual don't match what the dashboard sees.
   public int ballotsRemainingInCurrentRound() {
     final int result;
 
@@ -526,8 +537,19 @@ public class CountyDashboard implements PersistentEntity {
     } else {
       final Round round = currentRound();
       result = round.expectedCount() - round.actualCount();
-    }
 
+      LOGGER.debug(String.format("[ballotsRemainingInCurrentRound:"
+                                 + " index=%d, result=%d, round.expected=%d, round.actual=%d,"
+                                 + " cdb.auditedSampleCount()=%d, cdb.my_estimated_samples_to_audit=%d,"
+                                 + " cdb.my_optimistic_samples_to_audit=%d]",
+                                 my_current_round_index,
+                                 result,
+                                 round.expectedCount(),
+                                 round.actualCount(),
+                                 this.auditedSampleCount(),
+                                 this.my_estimated_samples_to_audit,
+                                 this.my_optimistic_samples_to_audit));
+    }
     return result;
   }
 
@@ -804,7 +826,7 @@ public class CountyDashboard implements PersistentEntity {
     // NOTE: we may be asking for this when we don't need to; when there are no
     // audits setup yet
     if (maybe.isPresent()) {
-      return maybe.get();
+      return maybe.get() - this.auditedSampleCount();
     } else {
       return 0;
     }
@@ -867,6 +889,7 @@ public class CountyDashboard implements PersistentEntity {
    * @param the_audited_sample_count The audited sample count.
    */
   public void setAuditedSampleCount(final int the_audited_sample_count) {
+    LOGGER.debug(String.format("[setAuditedSampleCount: old=%d, new=%d]", my_audited_sample_count, the_audited_sample_count));
     my_audited_sample_count = the_audited_sample_count;
   }
 
