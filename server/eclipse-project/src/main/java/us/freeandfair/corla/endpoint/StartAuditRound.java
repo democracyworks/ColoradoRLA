@@ -434,21 +434,31 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     return my_endpoint_result.get();
   }
 
+  public Boolean isReadyToStartRound(final CountyDashboard cdb) {
+    final CountyDashboardASM countyDashboardASM =
+      ASMUtilities.asmFor(CountyDashboardASM.class, String.valueOf(cdb.id()));
+    // final AuditBoardDashboardASM auditBoardDashboardASM =
+    //   ASMUtilities.asmFor(AuditBoardDashboardASM.class, cdb.id().toString());
+    // // not sure about this yet:
+    // if (auditBoardDashboardASM.isInInitialState() || auditBoardDashboardASM.isInFinalState()) {
+    if (countyDashboardASM.isInInitialState() ||
+        countyDashboardASM.isInFinalState() ||
+        countyDashboardASM.currentState().equals(CountyDashboardState.COUNTY_AUDIT_UNDERWAY)) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   /**
    * Given a request to start a round thingy, return the dashboards to start.
    */
-  public List<CountyDashboard> dashboardsToStart(final SubmittedAuditRoundStart sars) {
-    final List<CountyDashboard> cdbs;
+  public List<CountyDashboard> dashboardsToStart() {
+    final List<CountyDashboard> cdbs = Persistence.getAll(CountyDashboard.class);
 
-    if (sars.countyBallots() == null || sars.countyBallots().isEmpty()) {
-      cdbs = Persistence.getAll(CountyDashboard.class);
-    } else {
-      cdbs = new ArrayList<>();
-      for (final Long id : sars.countyBallots().keySet()) {
-        cdbs.add(Persistence.getByID(id, CountyDashboard.class));
-      }
-    }
-    return cdbs;
+    return cdbs.stream()
+      .filter(cdb -> isReadyToStartRound(cdb))
+      .collect(Collectors.toList());
   }
 
 
