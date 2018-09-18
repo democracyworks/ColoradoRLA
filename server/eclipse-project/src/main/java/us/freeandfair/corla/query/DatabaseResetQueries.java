@@ -69,7 +69,6 @@ public final class DatabaseResetQueries {
         "county_contest_result",
         "contest_result",
         "cvr_contest_info",
-        "driving_contest",
         "contest",
         "contest_result",
         "cvr_audit_info",

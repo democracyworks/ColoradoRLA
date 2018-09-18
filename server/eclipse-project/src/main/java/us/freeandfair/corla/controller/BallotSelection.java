@@ -360,7 +360,8 @@ public final class BallotSelection {
     Map <Long, Boolean> isAuditedById = new HashMap<>();
     for (final Long cvrId: cvrIds) {
       CVRAuditInfo cvrai = Persistence.getByID(cvrId, CVRAuditInfo.class);
-      boolean isAudited = (cvrai != null);
+      // has an acvr
+      boolean isAudited = (cvrai != null && cvrai.acvr() != null);
       isAuditedById.put(cvrId, isAudited);
     }
 

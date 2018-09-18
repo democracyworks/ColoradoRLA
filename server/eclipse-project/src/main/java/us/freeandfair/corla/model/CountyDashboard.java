@@ -47,6 +47,7 @@ import javax.persistence.Version;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import us.freeandfair.corla.controller.BallotSelection;
 import us.freeandfair.corla.model.ImportStatus.ImportState;
 import us.freeandfair.corla.persistence.AuditSelectionIntegerMapConverter;
 import us.freeandfair.corla.persistence.PersistentEntity;
@@ -535,20 +536,24 @@ public class CountyDashboard implements PersistentEntity {
     if (my_current_round_index == null) {
       result = 0;
     } else {
+
       final Round round = currentRound();
-      result = round.expectedCount() - round.actualCount();
+      // result = round.expectedCount() - round.actualCount();
+
+      Integer prefix = BallotSelection.auditedPrefixLength(round.ballotSequence());
+      result = round.ballotSequence().size() - prefix;
 
       LOGGER.debug(String.format("[ballotsRemainingInCurrentRound:"
-                                 + " index=%d, result=%d, round.expected=%d, round.actual=%d,"
-                                 + " cdb.auditedSampleCount()=%d, cdb.my_estimated_samples_to_audit=%d,"
-                                 + " cdb.my_optimistic_samples_to_audit=%d]",
+                                 + " index=%d, result=%d, prefix=%d,"
+                                 + " ballotSequence=%s"
+                                 + " ballotSequence.size=%d"
+                                 + " cdb.auditedSampleCount()=%d]",
                                  my_current_round_index,
                                  result,
-                                 round.expectedCount(),
-                                 round.actualCount(),
-                                 this.auditedSampleCount(),
-                                 this.my_estimated_samples_to_audit,
-                                 this.my_optimistic_samples_to_audit));
+                                 prefix,
+                                 round.ballotSequence(),
+                                 round.ballotSequence().size(),
+                                 this.auditedSampleCount()));
     }
     return result;
   }
@@ -826,7 +831,10 @@ public class CountyDashboard implements PersistentEntity {
     // NOTE: we may be asking for this when we don't need to; when there are no
     // audits setup yet
     if (maybe.isPresent()) {
-      return maybe.get() - this.auditedSampleCount();
+      LOGGER.debug(String.format("estimatedSamplesToAudit: result=%s auditedSampleCount=%s",
+                                 maybe.get(),
+                                 auditedSampleCount()));
+      return maybe.get();
     } else {
       return 0;
     }
