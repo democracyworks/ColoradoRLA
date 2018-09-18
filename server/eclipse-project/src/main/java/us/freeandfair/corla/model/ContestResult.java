@@ -279,6 +279,11 @@ public class ContestResult implements PersistentEntity, Serializable {
     this.contestCVRIds = contestCVRIds;
   }
 
+  public void addContestCVRIds (List<Long> contestCVRIds) {
+    this.contestCVRIds.addAll(contestCVRIds);
+  }
+
+
   public List<Long> getContestCVRIds() {
     return this.contestCVRIds;
   }

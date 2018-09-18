@@ -186,21 +186,27 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
    * sets selection on each contestResult, the results of
    * BallotSelection.randomSelection
    */
-  public void makeSelections(final String seed,
-                             final BigDecimal riskLimit) {
-    final List<ContestResult> contestResults = Persistence.getAll(ContestResult.class);
-    for(final ContestResult contestResult: contestResults) {
+  public List<Selection> makeSelections(List<ComparisonAudit> comparisonAudits,
+                                        final String seed,
+                                        final BigDecimal riskLimit) {
+
+    List<Selection> selections = new ArrayList<>();
+    // maybe...
+    // comparisonAudits.stream()
+    //   .filter(ca -> ca.isTargeted())
+    //   .map(BallotSelection::randomSelection)
+
+    for(final ComparisonAudit comparisonAudit: comparisonAudits) {
+      final ContestResult contestResult = comparisonAudit.contestResult();
       // only make selection for targeted contests
       // the only AuditReasons in play are county, state and opportunistic
       if (contestResult.getAuditReason() != AuditReason.OPPORTUNISTIC_BENEFITS) {
-        final BigDecimal optimistic =
-          Audit.optimistic(riskLimit, contestResult.getDilutedMargin());
         LOGGER.debug(String.format("[makeSelections for ContestResult: contestName=%s, contestResult.contestCVRIds=%s]",
                                    contestResult.getContestName(),
                                    contestResult.getContestCVRIds()));
 
         final Integer startIndex = BallotSelection.auditedPrefixLength(contestResult.getContestCVRIds());
-        final Integer endIndex = optimistic.intValue() - 1;
+        final Integer endIndex = comparisonAudit.optimisticSamplesToAudit();
 
         Selection selection = BallotSelection.randomSelection(contestResult,
                                                               seed,
@@ -213,13 +219,12 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                                    startIndex, endIndex));
         selection.riskLimit = riskLimit;
         contestResult.selection = selection;
-        contestResult.setContestCVRIds(selection.contestCVRIds());
-      } else {
-        Selection selection = new Selection();
-        selection.riskLimit = riskLimit;
-        contestResult.selection = selection;
+        contestResult.addContestCVRIds(selection.contestCVRIds());
+
+        selections.add(selection);
       }
     }
+    return selections;
   }
 
   /**
@@ -323,8 +328,9 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     final DoSDashboard dosdb = Persistence.getByID(DoSDashboard.ID, DoSDashboard.class);
     final BigDecimal riskLimit = dosdb.auditInfo().riskLimit();
     final String seed = dosdb.auditInfo().seed();
-
-    makeSelections(seed, riskLimit);    // sets Selections on contestResults
+    final List<ComparisonAudit> comparisonAudits = Persistence.getAll(ComparisonAudit.class);
+    final List<Selection> selections = makeSelections(comparisonAudits,
+                                                      seed, riskLimit);
 
     // Nothing in this try-block should know about HTTP requests / responses
     // update every county dashboard with a list of ballots to audit
@@ -339,7 +345,10 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
       for (final CountyDashboard cdb : cdbs) {
         try {
           // Selections for all contests that this county is participating in
-          final Segment segment = combinedSegment(cdb);
+          // final Segment segment = combinedSegment(cdb);
+          final Segment segment = Selection.combineSegments(selections.stream()
+                                                            .map(s -> s.forCounty(cdb.county().id()))
+                                                            .collect(Collectors.toList()));
 
           LOGGER.debug(String.format("[startRound:"
                                      + " county=%s, round=%s, segment.auditSequence()=%s,"
