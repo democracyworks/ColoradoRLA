@@ -834,7 +834,7 @@ public class CountyDashboard implements PersistentEntity {
       LOGGER.debug(String.format("estimatedSamplesToAudit: result=%s auditedSampleCount=%s",
                                  maybe.get(),
                                  auditedSampleCount()));
-      return maybe.get();
+      return maybe.get() - auditedSampleCount();
     } else {
       return 0;
     }
