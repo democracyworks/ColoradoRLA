@@ -347,26 +347,34 @@ public final class BallotSelection {
     return bmis;
   }
 
-
   public static Integer auditedPrefixLength(List<Long> cvrIds) {
+    Map <Long, Boolean> isAuditedById = new HashMap<>();
 
-    LOGGER.info(String.format("[auditedPrefixLength cvrIds=%s]", cvrIds));
-    final Map isAuditedById = new HashMap<>();
     for (final Long cvrId: cvrIds) {
       CVRAuditInfo cvrai = Persistence.getByID(cvrId, CVRAuditInfo.class);
-      Boolean isAudited = (Boolean)(cvrai != null);
-      LOGGER.info(String.format("[Adding selection: cvrId=%s isAudited=%s]", cvrId, isAudited));
+      boolean isAudited = (cvrai != null);
+      LOGGER.info(String.format("[auditedPrefixLength finding %d to be isAudited=%b]", cvrId, isAudited));
       isAuditedById.put(cvrId, isAudited);
     }
+
+    LOGGER.info(String.format("[auditedPrefixLength cvrIds=%s, isAuditedById=%s]",
+                              cvrIds, isAuditedById));
     Integer apl = 0;
-    for (int i=1; i < cvrIds.size(); i++) {
-      LOGGER.info(String.format("[isAudited= %s]", isAuditedById.get(cvrIds.get(i))));
-      if ((boolean)isAuditedById.get(cvrIds.get(i))) {
+
+    for (int i=0; i < cvrIds.size(); i++) {
+      boolean audited = isAuditedById.get(cvrIds.get(i));
+
+      LOGGER.info(String.format("[cvrIds.get(%d)=%d, audited=%b]", i, cvrIds.get(i), audited));
+
+      if (audited) {
+        LOGGER.info(String.format("[audited apl=%d, i=%d", apl, i));
         apl = i;
-        break;
-      }
-      apl = i;
+      } else { break; }
+
+      LOGGER.info(String.format("[auditedPrefixLength end: apl=%d, i=%d]", apl, i));
+      apl = i + 1;
     }
+
     return apl;
   }
 

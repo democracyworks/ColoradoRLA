@@ -47,13 +47,6 @@ public class BallotSelectionTest {
 
   private Boolean return_cvr = true;
 
-  @Test()
-  public void testAuditedPrefixLengthWithNone() {
-    List<Long> cvrIds = new ArrayList<>();
-    Integer result = BallotSelection.auditedPrefixLength(cvrIds);
-    assertEquals((int)0, (int)result);
-  }
-
   @BeforeTest()
   public void setUp() {
     Setup.setProperties();
@@ -69,18 +62,35 @@ public class BallotSelectionTest {
   }
 
   @Test()
+  public void testAuditedPrefixLengthWithNone() {
+    List<Long> cvrIds = new ArrayList<>();
+    Integer result = BallotSelection.auditedPrefixLength(cvrIds);
+    assertEquals((int)0, (int)result);
+  }
+
+  @Test()
   public void testAuditedPrefixLengthWithSome() {
     CastVoteRecord cvr1 = fakeCVR(1);
-    CVRAuditInfo cai = new CVRAuditInfo(cvr1);
-    assertEquals(true, Persistence.saveOrUpdate(cvr1));
-    assertEquals(true, Persistence.saveOrUpdate(cai));
     CastVoteRecord cvr2 = fakeCVR(2);
+    CastVoteRecord cvr3 = fakeCVR(3);
+    CastVoteRecord cvr4 = fakeCVR(4);
+    Persistence.saveOrUpdate(cvr1);
+    Persistence.saveOrUpdate(cvr2);
+    Persistence.saveOrUpdate(cvr3);
+    Persistence.saveOrUpdate(cvr4);
+
+    CVRAuditInfo cai1 = new CVRAuditInfo(cvr1);
     CVRAuditInfo cai2 = new CVRAuditInfo(cvr2);
-    assertEquals(true, Persistence.saveOrUpdate(cvr2));
-    assertEquals(true, Persistence.saveOrUpdate(cai2));
+    CVRAuditInfo cai4 = new CVRAuditInfo(cvr4);
+    Persistence.saveOrUpdate(cai1);
+    Persistence.saveOrUpdate(cai2);
+    Persistence.saveOrUpdate(cai4);
+
     List<Long> cvrIds = new ArrayList<>();
     cvrIds.add(cvr1.id());
     cvrIds.add(cvr2.id());
+    cvrIds.add(cvr3.id());
+    cvrIds.add(cvr4.id());
     Integer result = BallotSelection.auditedPrefixLength(cvrIds);
     assertEquals((int)result, (int)2);
   }
