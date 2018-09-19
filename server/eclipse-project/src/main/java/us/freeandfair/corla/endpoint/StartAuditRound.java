@@ -318,17 +318,6 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
   }
 
   /**
-   * All contests for county and their selections combined into a
-   * single segment
-   **/
-  public Segment combinedSegment(CountyDashboard cdb) {
-    List<Segment> countyContestSegments = cdb.comparisonAudits().stream()
-      .map(ca -> (Segment)ca.contestResult().selection.forCounty(cdb.county().id()))
-      .collect(Collectors.toList());
-    return Selection.combineSegments(countyContestSegments);
-  }
-
-  /**
    * Starts the first audit round.
    *
    * @param the_request The HTTP request.
@@ -356,10 +345,12 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
       for (final CountyDashboard cdb : dashboardsToStart()) {
         try {
           // Selections for all contests that this county is participating in
-          // final Segment segment = combinedSegment(cdb);
           final Segment segment = Selection.combineSegments(selections.stream()
                                                             .map(s -> s.forCounty(cdb.county().id()))
                                                             .collect(Collectors.toList()));
+
+          //TODO consider what happens if a county only has one round by
+          //way of being skipped on the first.
           if (segment.ballotSequence().isEmpty()) {
             LOGGER.debug(String.format("[startRound: no ballots selected for %s , skipping]", cdb.county()));
             continue; //skip

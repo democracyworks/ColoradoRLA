@@ -215,6 +215,7 @@ public class CountyDashboard implements PersistentEntity {
   /**
    * The audit data.
    */
+  // FIXME We left this here with the same name for what reason?
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(name = "counties_to_comparison_audits",
              joinColumns = { @JoinColumn(name = DASHBOARD_ID,
@@ -505,7 +506,6 @@ public class CountyDashboard implements PersistentEntity {
                                   the_ballots_to_audit,
                                   the_audit_subsequence);
     my_rounds.add(round);
-    LOGGER.debug("[startRound ends]");
   }
 
   /**
