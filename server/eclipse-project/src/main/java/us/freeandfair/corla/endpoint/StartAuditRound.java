@@ -347,7 +347,6 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     // Nothing in this try-block should know about HTTP requests / responses
     // update every county dashboard with a list of ballots to audit
     try {
-      final List<CountyDashboard> cdbs = Persistence.getAll(CountyDashboard.class);
 
       // this flag starts off true if we're going to conjoin it with all the ASM
       // states, and false otherwise as we just assume audit reasonableness in the
@@ -361,6 +360,10 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
           final Segment segment = Selection.combineSegments(selections.stream()
                                                             .map(s -> s.forCounty(cdb.county().id()))
                                                             .collect(Collectors.toList()));
+          if (segment.ballotSequence().isEmpty()) {
+            LOGGER.debug(String.format("[startRound: no ballots selected for %s , skipping]", cdb.county()));
+            continue; //skip
+          }
 
           LOGGER.debug(String.format("[startRound:"
                                      + " county=%s, round=%s, segment.auditSequence()=%s,"
@@ -457,8 +460,7 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
     final CountyDashboardASM countyDashboardASM =
       ASMUtilities.asmFor(CountyDashboardASM.class, String.valueOf(cdb.id()));
     if (countyDashboardASM.isInInitialState() ||
-        countyDashboardASM.isInFinalState() ) {
-        // || !countyDashboardASM.currentState().equals(CountyDashboardState.COUNTY_AUDIT_UNDERWAY)
+        countyDashboardASM.isInFinalState()) {
 
       return false;
     } else {
