@@ -654,12 +654,10 @@ def dos_start(ac):
     if len(ac.audited_contests) <= 0:
         print("No contests to audit, status_code = %d" % r.status_code)
         return
-
-    for contest_id in ac.audited_contests:
-        r = test_endpoint_json(ac, ac.state_s, "/select-contests",
-                               [{"contest": contest_id,
-                                 "reason": "COUNTY_WIDE_CONTEST",
-                                 "audit": "COMPARISON"}])
+    r = test_endpoint_json(ac, ac.state_s, "/select-contests",
+                           [{"contest": contest_id,
+                             "reason": "COUNTY_WIDE_CONTEST",
+                             "audit": "COMPARISON"} for contest_id in ac.audited_contests])
 
     r = test_endpoint_json(ac, ac.state_s, "/random-seed",
                            {'seed': ac.args.seed})
@@ -799,9 +797,9 @@ def county_audit(ac, county_id):
 
     r = test_endpoint_json(ac, county_s, "/sign-off-audit-round", audit_board_set)
 
-    remaining = county_dashboard['estimated_ballots_to_audit']
+    remaining = county_dashboard['ballots_remaining_in_round']
     if remaining <= 0:
-        print("\nCounty %d Audit completed after %d ballots" % (county_id, total_audited + 1))
+        print("\nCounty %d Audit Round completed after %d ballots" % (county_id, total_audited + 1))
 
     return(remaining)
 

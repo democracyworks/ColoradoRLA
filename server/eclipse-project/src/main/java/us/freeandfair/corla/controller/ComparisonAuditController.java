@@ -584,11 +584,8 @@ public final class ComparisonAuditController {
 
     final int audit_count = auditInfo.multiplicity() - auditInfo.counted();
 
-    for (final ComparisonAudit ca : cdb.comparisonAudits().stream()
-           .filter(ca -> ca.isCovering(auditInfo.cvr().id()))
-           .collect(Collectors.toList())) {
+    for (final ComparisonAudit ca : cdb.comparisonAudits()) {
 
-      // FIXME: check cvrid for presence in ballotSequence
       final OptionalInt discrepancy = ca.computeDiscrepancy(cvr_under_audit, audit_cvr);
 
       if (discrepancy.isPresent()) {
