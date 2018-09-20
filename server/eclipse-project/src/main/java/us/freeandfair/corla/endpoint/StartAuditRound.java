@@ -19,6 +19,7 @@ import static us.freeandfair.corla.asm.ASMState.DoSDashboardState.COMPLETE_AUDIT
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -340,7 +341,7 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
       // this flag starts off true if we're going to conjoin it with all the ASM
       // states, and false otherwise as we just assume audit reasonableness in the
       // absence of ASMs
-      boolean audit_complete = !DISABLE_ASM;
+      boolean audit_complete = true;
 
       for (final CountyDashboard cdb : dashboardsToStart()) {
         try {
@@ -349,11 +350,17 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                                                             .map(s -> s.forCounty(cdb.county().id()))
                                                             .collect(Collectors.toList()));
 
-          //TODO consider what happens if a county only has one round by
-          //way of being skipped on the first.
           if (segment.ballotSequence().isEmpty()) {
-            LOGGER.debug(String.format("[startRound: no ballots selected for %s , skipping]", cdb.county()));
-            continue; //skip
+            LOGGER.debug(String.format("[startRound: no ballots to audit in %s County, skipping round]",
+                                       cdb.county()));
+            // TODO confirm. we need a round started if we are to
+            // sign-off on one. we need a round started if we are to
+            // report having finished it with nothing to do. The
+            // questionable part is kicking the ASM somehow. It _seems
+            // to work_ better than skipping everything outright.
+            cdb.startRound(0, 0, 0, Collections.emptyList(), Collections.emptyList());
+            ASMUtilities.step(ROUND_COMPLETE_EVENT, AuditBoardDashboardASM.class, String.valueOf(cdb.id()));
+            continue; // skip normal setup
           }
 
           LOGGER.debug(String.format("[startRound:"
@@ -363,61 +370,49 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                                      cdb.county(), cdb.currentRound(), segment.auditSequence(),
                                      segment.ballotSequence(), cdb.comparisonAudits()));
           final boolean started =
-            ComparisonAuditController.startRound(cdb,
-                                                 cdb.comparisonAudits(),
+            ComparisonAuditController.startRound(cdb, cdb.comparisonAudits(),
                                                  segment.auditSequence(),
                                                  segment.ballotSequence());
 
-          if (started) {
-            LOGGER.debug(String.format(
-                         "[startRound: %s County estimated to audit %d ballots in round %s]",
-                         cdb.county().name(), cdb.estimatedSamplesToAudit(),
-                         cdb.currentRound()));
-          } else if (cdb.drivingContestNames().isEmpty()) {
-            LOGGER
-              .debug(String.format("[startRound: %s County has no driving contests, audit complete.]",
-                                   cdb.county().name()));
-          } else if (cdb.estimatedSamplesToAudit() == 0) {
-            // FIXME I think this might be removed by using dashboardsToStart()...
-            LOGGER
-              .debug(String.format("[startRound: %s County needs to audit 0 ballots to"
-                                   + " achieve its risk limit, its audit is complete.]",
-                                   cdb.county().name()));
-          } else {
-            LOGGER
-              .error(String.format("[startRound: Unable to start audit for %s County.",
-                                   cdb.county().name()));
-          }
           Persistence.saveOrUpdate(cdb);
 
           // FIXME extract-fn: updateASMs(dashboardID, ,,,)
           // update the ASMs for the county and audit board
-          if (!DISABLE_ASM) {
-            final CountyDashboardASM countyDashboardASM =
-                ASMUtilities.asmFor(CountyDashboardASM.class, String.valueOf(cdb.id()));
+          final CountyDashboardASM countyDashboardASM =
+            ASMUtilities.asmFor(CountyDashboardASM.class, String.valueOf(cdb.id()));
 
-            if (countyDashboardASM.currentState().equals(CountyDashboardState.COUNTY_AUDIT_UNDERWAY)) {
-              if (cdb.comparisonAudits().isEmpty()) {
-                LOGGER.debug("[startRound: county made its deadline but was assigned no contests to audit]");
-                ASMUtilities.step(NO_CONTESTS_TO_AUDIT_EVENT, AuditBoardDashboardASM.class,
-                                  String.valueOf(cdb.id()));
-                countyDashboardASM.stepEvent(COUNTY_AUDIT_COMPLETE_EVENT);
-              } else if (cdb.estimatedSamplesToAudit() <= 0) {
-                LOGGER.debug("[startRound: county made its deadline but has already achieved its risk limit]");
-                ASMUtilities.step(RISK_LIMIT_ACHIEVED_EVENT, AuditBoardDashboardASM.class,
-                                  String.valueOf(cdb.id()));
-                countyDashboardASM.stepEvent(COUNTY_AUDIT_COMPLETE_EVENT);
-              } else {
-                LOGGER.debug("[startRound: the round started normally]");
-                ASMUtilities.step(ROUND_START_EVENT, AuditBoardDashboardASM.class,
-                              String.valueOf(cdb.id()));
-              }
+          if (countyDashboardASM.currentState().equals(CountyDashboardState.COUNTY_AUDIT_UNDERWAY)) {
+            if (cdb.comparisonAudits().isEmpty()) {
+              LOGGER.debug("[startRound: county made its deadline but was assigned no contests to audit]");
+              ASMUtilities.step(NO_CONTESTS_TO_AUDIT_EVENT, AuditBoardDashboardASM.class,
+                                String.valueOf(cdb.id()));
+              countyDashboardASM.stepEvent(COUNTY_AUDIT_COMPLETE_EVENT);
+            } else if (cdb.estimatedSamplesToAudit() <= 0) {
+              LOGGER
+              .debug(String.format("[startRound: %s County needs to audit 0 ballots to"
+                                   + " achieve its risk limit, its audit is complete.]",
+                                   cdb.county().name()));
+              ASMUtilities.step(RISK_LIMIT_ACHIEVED_EVENT, AuditBoardDashboardASM.class,
+                                String.valueOf(cdb.id()));
+              countyDashboardASM.stepEvent(COUNTY_AUDIT_COMPLETE_EVENT);
+            } else {
+              LOGGER.debug
+                (String.format
+                 ("[startRound: Round %d for %s County started normally."
+                  + " Estimated to audit %d ballots.]",
+                  cdb.county().name(), cdb.estimatedSamplesToAudit(),
+                  cdb.currentRound().number()));
+
+              ASMUtilities.step(ROUND_START_EVENT, AuditBoardDashboardASM.class,
+                                String.valueOf(cdb.id()));
             }
-            ASMUtilities.save(countyDashboardASM);
-
-            // figure out whether this county is done, or whether there's an audit to run
-            audit_complete &= countyDashboardASM.isInFinalState();
           }
+
+          ASMUtilities.save(countyDashboardASM);
+
+          // figure out whether this county is done, or whether there's an audit to run
+          audit_complete &= countyDashboardASM.isInFinalState();
+
         // FIXME hoist me; we don't need to know about HTTP requests or
         // responses at this level.
         } catch (final IllegalArgumentException e) {
@@ -465,8 +460,12 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
   public List<CountyDashboard> dashboardsToStart() {
     final List<CountyDashboard> cdbs = Persistence.getAll(CountyDashboard.class);
 
-    return cdbs.stream()
+    final List<CountyDashboard> result =
+      cdbs.stream()
       .filter(cdb -> isReadyToStartAudit(cdb))
       .collect(Collectors.toList());
+
+    LOGGER.debug("[dashboardsToStart: " + result);
+    return result;
   }
 }

@@ -686,6 +686,15 @@ def dos_start(ac):
                       (ac.round, status['ballots_remaining_in_round']))
     logging.debug("dos-dashboard: %s" % r.text)
 
+
+def start_audit_round(ac):
+    'Start the audit as a DoS user, logging the dashboard JSON afterward'
+
+    r = test_endpoint_json(ac, ac.state_s, "/start-audit-round", { "multiplier": 1.0, "use_estimates": True})
+    r = test_endpoint_get(ac, ac.state_s, "/dos-dashboard")
+    logging.debug("dos-dashboard: %s" % r.json())
+
+
 def county_audit(ac, county_id):
     'Audit board uploads ACVRs from a county. Return estimated remaining ballots to audit'
 
@@ -1102,6 +1111,9 @@ def main():
 
     if "dos_init" in ac.args.commands:
         dos_init(ac)
+
+    if "start_audit_round" in ac.args.commands:
+        start_audit_round(ac)
 
     if "county_setup" in ac.args.commands:
         for county_id in ac.args.counties:
