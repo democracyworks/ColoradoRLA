@@ -565,6 +565,15 @@ public class CountyDashboard implements PersistentEntity {
     return Collections.unmodifiableSet(audits);
   }
 
+
+  /**
+   * @return true if all of the comparison audits are finished.
+   */
+  public boolean auditsFinished() {
+    return comparisonAudits().stream()
+      .allMatch(c -> c.auditStatus().equals(AuditStatus.RISK_LIMIT_ACHIEVED));
+  }
+
   /**
    * @return the set of comparison audits being performed.
    */
