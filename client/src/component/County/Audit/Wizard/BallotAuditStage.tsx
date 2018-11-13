@@ -355,8 +355,11 @@ const BallotAuditStage = (props: StageProps) => {
                                     <p>
                                         Even if you think that the voter voted for too many
                                         choices, select all of the choices exactly as they
-                                        appear on the ballot in the RLA Software. If you need
-                                        more specific guidance, consult the Voter Intent Guide.
+                                        appear on the ballot in the RLA Software.
+                                        If there is an overvote with an uncertified write-in,
+                                        select the “Blank vote – no mark” button;
+                                        the software will not let you select any other choices.
+                                        If you need more specific guidance, consult the Voter Intent Guide.
                                     </p>
                                 </div>
 
@@ -387,9 +390,11 @@ const BallotAuditStage = (props: StageProps) => {
                                     <p>
                                         If the voter wrote in a candidate on the “Write-in” line,
                                         select the candidate the voter wrote in in the RLA software.
-                                        If the candidate does not appear in the RLA software, make no selection and
-                                        add a comment with what is written on the Write-in line. If you need more
-                                        specific guidance, consult the Voter Intent Guide.
+                                        If the candidate does not appear in the RLA software,
+                                        select the “Blank vote – no mark” button and add a comment with what
+                                        is written on the Write-in line. If there is an overvote with an uncertified write-in,
+                                        select the “Blank vote – no mark” button; the software will not let you select any other choices.
+                                        If you need more specific guidance, consult the Voter Intent Guide.
                                     </p>
                                 </div>
 
