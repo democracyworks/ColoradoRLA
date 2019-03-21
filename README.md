@@ -52,7 +52,15 @@ code changes you want to incorporate. You can pass specific services to
 `docker-compose build` if you don’t want to rebuild everything.
 
 ```sh
-docker-compose build
+## Pull latest versions of all images
+docker-compose build --pull
+```
+
+If you have run the RLA tool in the past, you might want to ensure extant
+containers have been removed:
+
+```sh
+docker-compose down
 ```
 
 ## Running

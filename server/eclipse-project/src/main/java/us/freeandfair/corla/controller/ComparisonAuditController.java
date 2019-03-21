@@ -217,6 +217,7 @@ public final class ComparisonAuditController {
 
     final Integer new_count = audit(cdb, cai, true);
     LOGGER.debug("[reaudit] new_count: " + new_count.toString());
+    cdb.updateAuditStatus();
 
     return true;
   }

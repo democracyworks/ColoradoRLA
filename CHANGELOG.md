@@ -11,6 +11,9 @@ with the following tags indicating the components affected:
   as the RLA export.
 
 
+## 2.1.2 - Bugfix release
+- [API - fix end of round bug][pr128]
+
 ## 2.1.0 - New Features
 - [API|UI - Canonical Choices][pr126]
 - [API|UI - Re-audit ballots][pr117]
@@ -206,3 +209,4 @@ This is [FreeAndFair's most recent tag][1.1.0.3].
 [pr110]: https://github.com/democracyworks/ColoradoRLA/pull/110
 [pr117]: https://github.com/democracyworks/ColoradoRLA/pull/117
 [pr126]: https://github.com/democracyworks/ColoradoRLA/pull/126
+[pr128]: https://github.com/democracyworks/ColoradoRLA/pull/128
