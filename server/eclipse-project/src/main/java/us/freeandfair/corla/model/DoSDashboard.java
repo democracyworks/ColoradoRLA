@@ -275,6 +275,16 @@ public class DoSDashboard implements PersistentEntity, Serializable {
   }
 
   /**
+   * data access helper
+   * @return contests names of contestsToAudit a.k.a selected contests, targeted contests
+   */
+  public Set<String> targetedContestNames() {
+    return targetedContests()
+      .map(c -> c.name())
+      .collect(Collectors.toSet());
+  }
+
+  /**
    * @return a String representation of this contest.
    */
   @Override

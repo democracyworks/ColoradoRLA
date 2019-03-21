@@ -249,11 +249,11 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
    */
   public List<ContestResult> countAndSaveContests(final Set<ContestToAudit> cta) {
     LOGGER.debug(String.format("[countAndSaveContests: cta=%s]", cta));
+    Map<String, AuditReason> tcr = targetedContestReasons(cta);
 
     return
       ContestCounter.countAllContests().stream()
-      .map(cr -> {cr.setAuditReason(targetedContestReasons(cta)
-                                    .getOrDefault(cr.getContestName(),
+      .map(cr -> {cr.setAuditReason(tcr.getOrDefault(cr.getContestName(),
                                                   AuditReason.OPPORTUNISTIC_BENEFITS));
                   return cr; })
       .map(Persistence::persist)

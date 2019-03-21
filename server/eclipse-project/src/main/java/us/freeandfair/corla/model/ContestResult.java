@@ -341,6 +341,11 @@ public class ContestResult implements PersistentEntity, Serializable {
     return Collections.unmodifiableMap(this.vote_totals);
   }
 
+  /** data access helper **/
+  public Integer totalVotes() {
+    return getVoteTotals().values().stream().reduce(0, Integer::sum);
+  }
+
   /**
    * @param voteTotals a map from choices to vote totals.
    */

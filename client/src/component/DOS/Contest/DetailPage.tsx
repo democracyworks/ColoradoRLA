@@ -61,9 +61,11 @@ interface PageProps {
     contest?: Contest;
 }
 
-function contestReportUrl(contestName: string) {
+function activityReportUrl(contestName: string) {
     return endpoint('publish-audit-report')
-        + '?contestName=' + encodeURIComponent(contestName);
+        + '?contestName=' + encodeURIComponent(contestName)
+         + '&reportType=activity'
+         + '&contentType=xlsx';
 }
 
 const ContestDetailPage = (props: PageProps) => {
@@ -95,8 +97,8 @@ const ContestDetailPage = (props: PageProps) => {
                     audited each ballot.
                 </p>
                 <a className='pt-button pt-large pt-intent-primary'
-                   href={ contestReportUrl(contest.name) }>
-                   Download contest report
+                   href={ activityReportUrl(contest.name) }>
+                   Download Activity Report
                 </a>
             </div>
             <div className='pt-card'>

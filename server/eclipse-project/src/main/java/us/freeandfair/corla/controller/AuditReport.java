@@ -1,6 +1,8 @@
 package us.freeandfair.corla.controller;
 
 
+import java.io.IOException;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -18,12 +20,20 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.TimeZone;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import us.freeandfair.corla.csv.CSVWriter;
+// import us.freeandfair.corla.controller.ContestCounter;
+import us.freeandfair.corla.report.WorkbookWriter;
+import us.freeandfair.corla.math.Audit;
 import us.freeandfair.corla.model.CastVoteRecord;
 import us.freeandfair.corla.model.County;
 import us.freeandfair.corla.model.CVRAuditInfo;
 import us.freeandfair.corla.model.CVRContestInfo;
 import us.freeandfair.corla.model.ComparisonAudit;
+import us.freeandfair.corla.model.Contest;
+import us.freeandfair.corla.model.DoSDashboard;
 import us.freeandfair.corla.model.Tribute;
 import us.freeandfair.corla.persistence.Persistence;
 import us.freeandfair.corla.query.CastVoteRecordQueries;
@@ -41,6 +51,11 @@ public class AuditReport {
   // no instantiation
   private AuditReport () {};
 
+  /**
+   * Class-wide logger
+   */
+  public static final Logger LOGGER =
+    LogManager.getLogger(AuditReport.class);
 
   /**
    * One array to be part of an array of arrays, ie: a table or csv or xlsx.
@@ -75,15 +90,15 @@ public class AuditReport {
   }
 
   public static final String[] ALL_HEADERS = {
-    "db id",
-    "record type",
     "county",
-    "round",
     "imprinted id",
     "scanner id",
     "batch id",
     "record id",
+    "db id",
+    "round",
     "audit board",
+    "record type",
     "discrepancy",
     "consensus",
     "comment",
@@ -160,7 +175,7 @@ public class AuditReport {
 
   /** US local date time **/
   private static final DateTimeFormatter MMDDYYYY =
-    DateTimeFormatter.ofPattern("MM/dd/yyyy hh:mm a");
+    DateTimeFormatter.ofPattern("MM/dd/yyyy hh:mm:ss a");
 
   public static String renderTimestamp(Instant timestamp) {
     return MMDDYYYY.format(LocalDateTime
@@ -203,15 +218,15 @@ public class AuditReport {
   }
 
   public static Row addResultsFields(Row row, Tribute tribute, Integer multiplicity) {
-    row.put("multiplicity", multiplicity);
+    row.put("multiplicity", toString(multiplicity));
     return addResultsFields(row, tribute);
   }
+
   public static Row addResultsFields(Row row, Tribute tribute) {
     row.put("random number", toString(tribute.rand));
     row.put("random number sequence position", toString(tribute.randSequencePosition));
     return row;
   }
-
 
   public static class ActivityReport {
     public static final String[] HEADERS =
@@ -229,6 +244,66 @@ public class AuditReport {
     public static final Row newRow() {
       return new Row(HEADERS);
     }
+  }
+
+  public static class SummaryReport {
+    public static final String[] HEADERS = {
+      "Contest",
+      "targeted",
+      "Winner",
+
+      "Risk Limit Achieved",
+      "diluted margin",
+      "disc +2",
+      "disc +1",
+      "disc -1",
+      "disc -2",
+      "gamma",
+
+      "ballot count",
+      "min margin",
+      "votes for winner",
+      "votes for runner up",
+      "total votes (marked)",
+      "disagreement count (included in +2 and +1)"
+    };
+
+    public static final Row newRow() {
+      return new Row(HEADERS);
+    }
+  }
+
+  public static List<List<String>> genSumResultsReport() {
+    List<List<String>> rows = new ArrayList();
+
+    rows.add(Arrays.asList(SummaryReport.HEADERS));
+    for (final ComparisonAudit ca: Persistence.getAll(ComparisonAudit.class)) {
+      Row row = SummaryReport.newRow();
+      // general info
+      row.put("Contest", ca.contestResult().getContestName());
+      row.put("targeted", toString(ca.isTargeted()));
+      row.put("Winner", toString(ca.contestResult().getWinners().iterator().next()));
+      row.put("Risk Limit Sought", toString(ca.getRiskLimit()));
+      // to perform calculations:
+      row.put("Risk Limit Achieved", "n/a");
+      row.put("diluted margin", toString(ca.getDilutedMargin()));
+      row.put("disc +2", toString(ca.discrepancyCount(2)));
+      row.put("disc +1", toString(ca.discrepancyCount(1)));
+      row.put("disc -1", toString(ca.discrepancyCount(-1)));
+      row.put("disc -2", toString(ca.discrepancyCount(-2)));
+      row.put("gamma", toString(ca.getGamma()));
+
+      // very detailed extra info
+      row.put("ballot count", toString(ca.contestResult().getBallotCount()));
+      row.put("min margin", toString(ca.contestResult().getMinMargin()));
+      row.put("votes for winner", toString(ContestCounter.rankTotals(ca.contestResult().getVoteTotals()).get(0).getValue()));
+      row.put("votes for runner up", toString(ContestCounter.rankTotals(ca.contestResult().getVoteTotals()).get(1).getValue()));
+      row.put("total votes (marked)", toString(ca.contestResult().totalVotes()));
+      row.put("disagreement count (included in +2 and +1)", toString(ca.disagreementCount()));
+
+      rows.add(row.toArray());
+    }
+    return rows;
   }
 
   public static List<List<String>> getContestActivity(String contestName) {
@@ -278,7 +353,7 @@ public class AuditReport {
 
       Row row = ResultsReport.newRow();
       if (acvr.isPresent()) {
-        Integer multiplicity = audit.multiplicity(acvr.getCvrId());
+        Integer multiplicity = audit.multiplicity(acvr.get().getCvrId());
         rows.add(addResultsFields(addBaseFields(row, audit, acvr.get()), tribute, multiplicity).toArray());
       } else {
         // not yet audited
@@ -288,4 +363,61 @@ public class AuditReport {
 
     return rows;
   }
+
+  /**
+   * Generate a report file and return the bytes
+   * activity: a log of acvr submissions for a particular Contest (includes all participating counties)
+   * activity-all: same as above for all targeted contests
+   * results: the acvr submissions for each random number that was generated (to audit this program's calculations)
+   * results-all: same as above for all targeted contests
+   *
+   * Here are the specific differences:
+   * - the Activity report is sorted by timestamp, the Audit Report by random number sequence
+   * - the Activity report shows previous revisions, the Audit Report does not
+   * - the Audit Report shows the random number that was generated for
+       the CVR (and the position),  the Activity Report does not
+   * - the Audit Report shows duplicates(multiplicity), the Activity Report does not
+   *
+   * contestName is optional if reportType is *-all
+   **/
+  public static byte[] generate(final String contentType,
+                                final String reportType,
+                                final String contestName)
+    throws IOException {
+    // xlsx
+    WorkbookWriter writer = new WorkbookWriter();
+    List<List<String>> rows;
+    DoSDashboard dosdb;
+
+    switch(reportType) {
+    case "activity":
+      rows = AuditReport.getContestActivity(contestName);
+      writer.addSheet(contestName, rows);
+      break;
+    case "activity-all":
+      dosdb = Persistence.getByID(DoSDashboard.ID, DoSDashboard.class);
+      for (final String cName: dosdb.targetedContestNames()) {
+        writer.addSheet(cName, getContestActivity(cName));
+      };
+      break;
+    case "results":
+      rows = AuditReport.getResultsReport(contestName);
+      writer.addSheet(contestName, rows);
+      break;
+    case "results-all":
+      dosdb = Persistence.getByID(DoSDashboard.ID, DoSDashboard.class);
+      writer.addSheet("Summary", genSumResultsReport());
+      for (final String cName: dosdb.targetedContestNames()) {
+        writer.addSheet(cName, getResultsReport(cName));
+      }
+      break;
+    default:
+      LOGGER.error("invalid reportType: " + reportType);
+      break;
+
+    }
+
+    return writer.write();
+  }
+
 }

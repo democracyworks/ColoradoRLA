@@ -345,7 +345,7 @@ public class ComparisonAudit implements PersistentEntity {
   }
 
   /**
-   * @return the risk limit associated with this audit.
+   * @return the diluted margin from the ContestResult.
    */
   public BigDecimal getDilutedMargin() {
     return this.diluted_margin;
@@ -357,6 +357,17 @@ public class ComparisonAudit implements PersistentEntity {
   public AuditReason auditReason() {
     return my_audit_reason;
   }
+
+  // public Integer totalVotesForWinner() {
+  //   // assuming winners allowed is always 1
+  //   // first, and only, winner
+  //   String winner = contestResult().getWinners().iterator().next();
+  //   return contestResult().getVoteTotals().get(winner);
+  // }
+
+  // public Integer totalVotesForRunnerUp() {
+  //   String winner = contestResult().getWinners().iterator().next();
+  // }
 
   /**
    * @return the audit status associated with this audit.

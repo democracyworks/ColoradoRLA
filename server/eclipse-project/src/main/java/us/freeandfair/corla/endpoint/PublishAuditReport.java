@@ -17,14 +17,13 @@ import spark.Response;
 import java.util.List;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.io.OutputStream;
 
 import org.apache.cxf.attachment.Rfc5987Util;
 
 import us.freeandfair.corla.asm.ASMEvent;
 import us.freeandfair.corla.controller.AuditReport;
-import us.freeandfair.corla.csv.CSVWriter;
-import us.freeandfair.corla.report.WorkbookWriter;
 import us.freeandfair.corla.util.SparkHelper;
 
 /**
@@ -58,40 +57,62 @@ public class PublishAuditReport extends AbstractDoSDashboardEndpoint {
     return AuthorizationType.STATE;
   }
 
+  public String capitalize(final String string) {
+    return string.substring(0,1).toUpperCase()
+      + string.substring(1);
+  }
+
+  public String fileName(final String reportType) {
+    try {
+      return Rfc5987Util.encode(String.format("%s_Report.xlsx",
+                                              capitalize(reportType)),
+                                "UTF-8");
+    } catch(final UnsupportedEncodingException e) {
+      return String.format("%s_Report.xlsx",
+                           capitalize(reportType));
+    }
+ }
+
   /**
    * Download all of the data relevant to public auditing of a RLA.
    */
   @Override
   public String endpointBody(final Request request,
                              final Response response)  {
-    final String contestName = request.queryParams("contestName");
-    final String reportType = request.queryParams("reportType");
+    String contentType;
+    final String contestName = request.queryParams("contestName"); // optional when reportType is *-all
+    final String reportType  = request.queryParams("reportType"); // activity/results
 
+    contentType = request.queryParams("contentType");
+    if (null == contentType) {
+      contentType = request.headers("Accept"); //header wins
+    }
+    // todo ensure reportType is present
+
+    byte[] reportBytes;
     try {
-      final WorkbookWriter workbookWriter = new WorkbookWriter();
-
-      switch(reportType) {
-        case "activity":
-          final List<List<String>> rows = AuditReport.getContestActivity(contestName);
-          workbookWriter.addSheet(contestName, rows);
-        // case "results":
-        default :
-          final List<List<String>> rows = AuditReport.getResultsReport(contestName);
-          workbookWriter.addSheet(contestName, rows);
+      switch (contentType) {
+          case "xlsx": case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            reportBytes = AuditReport.generate("xlsx", reportType, contestName);
+            response.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.header("Content-Disposition", "attachment; filename*=UTF-8''" + fileName(reportType));
+            break;
+          // not yet supported
+          // case "csv": case "text/csv":
+          //   response.header("Content-Type", "text/csv");
+          //   response.header("Content-Disposition", "attachment; filename*=UTF-8''" + fileName(reportType));
+          // case "json": case "application/json":
+          //   response.header("Content-Type", "application/json");
+          default:
+            invariantViolation(response, "Accept header or query param contentType is missing or invalid");
+            return my_endpoint_result.get();
       }
 
-
-
-
-      final byte[] reportBytes = workbookWriter.write();
-      final String fileName = Rfc5987Util.encode("Audit_Report.xlsx", "UTF-8");
-
-      response.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      response.header("Content-Disposition", "attachment; filename*=UTF-8''" + fileName);
-
-      final OutputStream os = SparkHelper.getRaw(response).getOutputStream();
-      os.write(reportBytes);
-      os.close();
+      if (null != reportBytes) {
+        final OutputStream os = SparkHelper.getRaw(response).getOutputStream();
+        os.write(reportBytes);
+        os.close();
+      }
 
       ok(response);
     } catch (final IOException e) {
