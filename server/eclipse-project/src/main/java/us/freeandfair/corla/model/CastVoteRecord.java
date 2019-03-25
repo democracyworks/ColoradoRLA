@@ -34,7 +34,6 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Index;
 import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
 import javax.persistence.OrderColumn;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
@@ -441,7 +440,7 @@ final public class CastVoteRecord implements Comparable<CastVoteRecord>,
   }
 
   /** set the round that this acvr is audited in **/
-  public void setRoundNumber (Integer roundNumber) {
+  public void setRoundNumber (final Integer roundNumber) {
     this.roundNumber = roundNumber ;
   }
 
@@ -451,7 +450,7 @@ final public class CastVoteRecord implements Comparable<CastVoteRecord>,
   }
 
   /** set the random number **/
-  public void setRand (Integer rand) {
+  public void setRand (final Integer rand) {
     this.rand = rand;
   }
 
@@ -498,10 +497,11 @@ final public class CastVoteRecord implements Comparable<CastVoteRecord>,
    * keep a record of what this ACVR was submitted to audit, which is lost when
    * reauditing because the CVRAuditInfo join is broke when reauditing
    **/
-  public void setCvrId(Long cvrId) {
+  public void setCvrId(final Long cvrId) {
     this.cvrId = cvrId;
   }
 
+  /** get the cvrId **/
   public Long getCvrId() {
     return this.cvrId;
   }

@@ -94,6 +94,7 @@ public class SubmittedAuditCVR {
     return this.comment;
   }
 
+  /** get which audit board is submitting this **/
   public Integer getAuditBoardIndex() {
     return this.auditBoardIndex;
   }

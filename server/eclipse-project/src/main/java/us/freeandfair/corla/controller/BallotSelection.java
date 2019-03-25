@@ -46,44 +46,6 @@ public final class BallotSelection {
   private BallotSelection() {
   }
 
-  // /**
-  //  * An ADT to wrap up some fiddly bits
-  //  **/
-  // public static class Tribute {
-  //   /**
-  //    * A county id
-  //    */
-  //   public Long countyId;
-
-  //   /**
-  //    * A scanner id
-  //    */
-  //   public Integer scannerId;
-
-  //   /**
-  //    * A batch id
-  //    */
-  //   public String batchId;
-
-  //   /**
-  //    * A ballot's position as an offest
-  //    */
-  //   public Integer ballotPosition;
-
-  //   /**
-  //    * The generated random number that selects/resolves to this Tribute
-  //    */
-  //   public Integer rand;
-
-  //   /**
-  //    * combine attributes to form a uri for fast selection
-  //    */
-  //   public String uri() {
-  //     // cvrs only, not acvrs
-  //     return String.format("%s:%s:%s-%s-%s", "cvr", countyId, scannerId, batchId, ballotPosition);
-  //   }
-  // }
-
   /**
    * A Segment is the unit of work for a single contest during one round
    * of a comparison audit. It might contain work for one or more
@@ -305,7 +267,7 @@ public final class BallotSelection {
 
     final List<Integer> generatedNumbers = gen.getRandomNumbers(minIndex, maxIndex);
 
-    Selection selection = new Selection();
+    final Selection selection = new Selection();
     selection.contestResult = contestResult;
     selection.contestName = contestResult.getContestName();//posterity
     selection.domainSize = domainSize; //posterity
@@ -351,7 +313,7 @@ public final class BallotSelection {
                                     final Set<BallotManifestInfo> contestBmis) {
     countyIds.forEach(id -> selection.initCounty(id));
     int i = 0;
-    for (Integer rand: selection.generatedNumbers) {
+    for (final Integer rand: selection.generatedNumbers) {
       final BallotManifestInfo bmi = selectCountyId(Long.valueOf(rand), contestBmis);
       selection.addBallotPosition(bmi,
                                   // translate rand from Contest scope to bmi/batch scope

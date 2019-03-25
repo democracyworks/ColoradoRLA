@@ -276,7 +276,8 @@ public class DoSDashboard implements PersistentEntity, Serializable {
 
   /**
    * data access helper
-   * @return contests names of contestsToAudit a.k.a selected contests, targeted contests
+   * @return contests names of contestsToAudit a.k.a selected contests, targeted
+   * contests
    */
   public Set<String> targetedContestNames() {
     return targetedContests()

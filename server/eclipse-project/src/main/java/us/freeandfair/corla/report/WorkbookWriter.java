@@ -42,8 +42,10 @@ public class WorkbookWriter {
    **/
   private final Workbook workbook;
 
+  /** regular style **/
   private final CellStyle regStyle;
 
+  /** bold style for headers **/
   private final CellStyle boldStyle;
 
   /**

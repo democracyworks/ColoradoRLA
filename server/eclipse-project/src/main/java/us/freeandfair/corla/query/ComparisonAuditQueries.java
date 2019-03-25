@@ -10,14 +10,6 @@
 
 package us.freeandfair.corla.query;
 
-import java.util.List;
-
-import javax.persistence.PersistenceException;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
-
 import org.hibernate.query.Query;
 import org.hibernate.Session;
 
@@ -25,7 +17,6 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import us.freeandfair.corla.model.AuditStatus;
-import us.freeandfair.corla.model.ContestResult;
 import us.freeandfair.corla.model.ComparisonAudit;
 import us.freeandfair.corla.persistence.Persistence;
 

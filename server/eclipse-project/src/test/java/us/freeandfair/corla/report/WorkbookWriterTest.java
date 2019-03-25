@@ -13,15 +13,15 @@ import org.apache.poi.ss.usermodel.Workbook;
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import us.freeandfair.corla.report.AuditReport;
+import us.freeandfair.corla.report.WorkbookWriter;
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 @Test
-public class AuditReportTest {
+public class WorkbookWriterTest {
 
-  private AuditReportTest() {};
+  private WorkbookWriterTest() {};
 
   @Test
   public void generateTest() throws IOException {
@@ -45,21 +45,24 @@ public class AuditReportTest {
     List<List<String>> rows = Stream.of(headers, row1, row2)
       .collect(Collectors.toList());
 
-    final byte[] report = (new AuditReport()).generate(rows);
+    String sheetName = "Sheet One";
+    WorkbookWriter exampleWB = new WorkbookWriter();
+    exampleWB.addSheet(sheetName, rows);
+    final byte[] report = exampleWB.write();
 
     final Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(report));
 
     assertEquals(wb.getNumberOfSheets(), 1);
     assertEquals(
-        wb.getSheet("Summary")
+          wb.getSheet(sheetName)
           .getRow(0)
           .getCell(0)
           .getStringCellValue(),
         "dbID"
     );
-    assertEquals(wb.getSheet("Summary").getLastRowNum(), 2);
-    assertEquals(wb.getSheet("Summary").getRow(0).getLastCellNum(), 9);
-    assertEquals(wb.getSheet("Summary").getRow(1).getLastCellNum(), 2);
-    assertEquals(wb.getSheet("Summary").getRow(2).getLastCellNum(), 2);
+    assertEquals(wb.getSheet(sheetName).getLastRowNum(), 2);
+    assertEquals(wb.getSheet(sheetName).getRow(0).getLastCellNum(), 9);
+    assertEquals(wb.getSheet(sheetName).getRow(1).getLastCellNum(), 2);
+    assertEquals(wb.getSheet(sheetName).getRow(2).getLastCellNum(), 2);
   }
 }

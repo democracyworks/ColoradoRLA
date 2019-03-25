@@ -30,37 +30,12 @@ public class Tribute implements PersistentEntity, Serializable {
   private Long version;
 
   /**
-   * {@inheritDoc}
-   */
-  @Override
-  public Long version() {
-    return this.version;
-  }
-
-
-  /**
    * The ID number.
    */
   @Id
   @Column(updatable = false, nullable = false)
   @GeneratedValue(strategy = GenerationType.SEQUENCE)
   private Long my_id;
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public Long id() {
-    return my_id;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void setID(final Long the_id) {
-    my_id = the_id;
-  }
 
   /**
    * A county id
@@ -102,12 +77,40 @@ public class Tribute implements PersistentEntity, Serializable {
    */
   public String uri;
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Long version() {
+    return this.version;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Long id() {
+    return my_id;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setID(final Long the_id) {
+    my_id = the_id;
+  }
+
+  /** get the uri **/
   public String getUri() {
     return this.uri;
   }
 
+  /**
+   * set the uri for the cvr that is to be selected
+   * this is used to find the cvr later
+   **/
   public void setUri() {
-    // cvrs only, not acvrs
     this.uri = String.format("%s:%s:%s-%s-%s", "cvr", countyId, scannerId, batchId, ballotPosition);
   }
 

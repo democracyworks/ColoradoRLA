@@ -8,20 +8,20 @@ import java.util.stream.Stream;
 
 import java.io.IOException;
 
-import us.freeandfair.corla.controller.AuditReport;
+import us.freeandfair.corla.report.ReportRows;
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 @Test
-public class AuditReportTest {
+public class ReportRowsTest {
 
-  private AuditReportTest() {};
+  private ReportRowsTest() {};
 
   @Test
   public void renderRow() throws IOException {
     String[] headers = { "a", "b", "c"};
-    AuditReport.Row row = new AuditReport.Row(headers);
+    ReportRows.Row row = new ReportRows.Row(headers);
     row.put("a", "1");
     assertEquals("1", row.get("a"));
     List result = Stream.of("1", null, null)

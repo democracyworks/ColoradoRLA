@@ -2,10 +2,13 @@ package us.freeandfair.corla.math;
 
 import static java.math.MathContext.DECIMAL128;
 
+// this is BigDecimal land
 import java.math.BigDecimal;
+import static java.math.BigDecimal.*;
 import java.math.RoundingMode;
 
-import ch.obermuhlner.math.big.BigDecimalMath;
+import static ch.obermuhlner.math.big.BigDecimalMath.pow;
+import static ch.obermuhlner.math.big.BigDecimalMath.log;
 
 /**
  * A static class that should grow to contain audit related mathematical
@@ -17,7 +20,7 @@ public final class Audit {
   /**
    * Stark's gamma from the literature. As seen in a controller.
    */
-  public static final BigDecimal GAMMA = BigDecimal.valueOf(1.03905);
+  public static final BigDecimal GAMMA = valueOf(1.03905);
 
   private Audit() {
   }
@@ -30,8 +33,8 @@ public final class Audit {
    */
   public static BigDecimal dilutedMargin(final Integer margin,
                                          final Long ballotCount) {
-    return dilutedMargin(BigDecimal.valueOf(margin),
-                         BigDecimal.valueOf(ballotCount));
+    return dilutedMargin(valueOf(margin),
+                         valueOf(ballotCount));
   }
 
   /**
@@ -42,8 +45,8 @@ public final class Audit {
    */
   public static BigDecimal dilutedMargin(final BigDecimal margin,
                                          final BigDecimal ballotCount) {
-    if (margin == BigDecimal.ZERO || ballotCount == BigDecimal.ZERO) {
-      return BigDecimal.ZERO;
+    if (margin == ZERO || ballotCount == ZERO) {
+      return ZERO;
     } else {
       return margin.divide(ballotCount, DECIMAL128);
     }
@@ -63,7 +66,7 @@ public final class Audit {
   public static BigDecimal totalErrorBound(final BigDecimal dilutedMargin,
                                            final BigDecimal gamma) {
 
-    return gamma.multiply(BigDecimal.valueOf(2), DECIMAL128)
+    return gamma.multiply(valueOf(2), DECIMAL128)
         .divide(dilutedMargin, DECIMAL128);
   }
 
@@ -105,39 +108,39 @@ public final class Audit {
                                       final int oneOver,
                                       final int twoOver) {
 
-    if (dilutedMargin.compareTo(BigDecimal.ZERO) == 0) { //hilarious
+    if (dilutedMargin.compareTo(ZERO) == 0) { //hilarious
       // nothing to do here, no samples will need to be audited because the
       // contest is uncontested
-      return BigDecimal.ZERO;
+      return ZERO;
     }
 
     final BigDecimal result;
-    final BigDecimal invgamma = BigDecimal.ONE.divide(gamma, DECIMAL128);
-    final BigDecimal twogamma = BigDecimal.valueOf(2).multiply(gamma);
+    final BigDecimal invgamma = ONE.divide(gamma, DECIMAL128);
+    final BigDecimal twogamma = valueOf(2).multiply(gamma);
     final BigDecimal invtwogamma =
-      BigDecimal.ONE.divide(twogamma, DECIMAL128);
-    final BigDecimal two_under_bd = BigDecimal.valueOf(twoUnder);
-    final BigDecimal one_under_bd = BigDecimal.valueOf(oneUnder);
-    final BigDecimal one_over_bd = BigDecimal.valueOf(oneOver);
-    final BigDecimal two_over_bd = BigDecimal.valueOf(twoOver);
+      ONE.divide(twogamma, DECIMAL128);
+    final BigDecimal two_under_bd = valueOf(twoUnder);
+    final BigDecimal one_under_bd = valueOf(oneUnder);
+    final BigDecimal one_over_bd = valueOf(oneOver);
+    final BigDecimal two_over_bd = valueOf(twoOver);
 
     final BigDecimal over_under_sum =
       two_under_bd.add(one_under_bd).add(one_over_bd).add(two_over_bd);
     final BigDecimal two_under =
-      two_under_bd.multiply(BigDecimalMath.log(BigDecimal.ONE.add(invgamma),
+      two_under_bd.multiply(log(ONE.add(invgamma),
                                                DECIMAL128));
     final BigDecimal one_under =
-      one_under_bd.multiply(BigDecimalMath.log(BigDecimal.ONE.add(invtwogamma),
+      one_under_bd.multiply(log(ONE.add(invtwogamma),
                                                DECIMAL128));
     final BigDecimal one_over =
-      one_over_bd.multiply(BigDecimalMath.log(BigDecimal.ONE.subtract(invtwogamma),
+      one_over_bd.multiply(log(ONE.subtract(invtwogamma),
                                               DECIMAL128));
     final BigDecimal two_over =
-      two_over_bd.multiply(BigDecimalMath.log(BigDecimal.ONE.subtract(invgamma),
+      two_over_bd.multiply(log(ONE.subtract(invgamma),
                                               DECIMAL128));
     final BigDecimal numerator =
       twogamma.negate().
-      multiply(BigDecimalMath.log(riskLimit, DECIMAL128).
+      multiply(log(riskLimit, DECIMAL128).
                add(two_under.add(one_under).add(one_over).add(two_over)));
       final BigDecimal ceil =
         numerator.divide(dilutedMargin, DECIMAL128).setScale(0, RoundingMode.CEILING);
@@ -187,19 +190,19 @@ public final class Audit {
                                                final int twoOver) {
     final BigDecimal totalErrorBound = totalErrorBound(dilutedMargin, gamma);
 
-    return BigDecimal.ONE.min(
-        BigDecimalMath.pow(
-            BigDecimal.ONE.subtract(
-                BigDecimal.ONE.divide(totalErrorBound, DECIMAL128)
+    return ONE.min(
+        pow(
+            ONE.subtract(
+                ONE.divide(totalErrorBound, DECIMAL128)
             ),
             auditedBallots,
             DECIMAL128
         )
         .multiply(
-            BigDecimalMath.pow(
-                BigDecimal.ONE.subtract(
-                    BigDecimal.ONE.divide(
-                        gamma.multiply(BigDecimal.valueOf(2), DECIMAL128),
+            pow(
+                ONE.subtract(
+                    ONE.divide(
+                        gamma.multiply(valueOf(2), DECIMAL128),
                         DECIMAL128
                     )
                 ),
@@ -209,9 +212,9 @@ public final class Audit {
             DECIMAL128
         )
         .multiply(
-            BigDecimalMath.pow(
-                BigDecimal.ONE.subtract(
-                    BigDecimal.ONE.divide(gamma, DECIMAL128)
+            pow(
+                ONE.subtract(
+                    ONE.divide(gamma, DECIMAL128)
                 ),
                 -1 * twoOver,
                 DECIMAL128
@@ -219,10 +222,10 @@ public final class Audit {
             DECIMAL128
         )
         .multiply(
-            BigDecimalMath.pow(
-                BigDecimal.ONE.add(
-                    BigDecimal.ONE.divide(
-                        gamma.multiply(BigDecimal.valueOf(2), DECIMAL128),
+            pow(
+                ONE.add(
+                    ONE.divide(
+                        gamma.multiply(valueOf(2), DECIMAL128),
                         DECIMAL128
                     )
                 ),
@@ -232,9 +235,9 @@ public final class Audit {
             DECIMAL128
         )
         .multiply(
-            BigDecimalMath.pow(
-                BigDecimal.ONE.add(
-                    BigDecimal.ONE.divide(gamma, DECIMAL128)
+            pow(
+                ONE.add(
+                    ONE.divide(gamma, DECIMAL128)
                 ),
                 -1 * twoUnder,
                 DECIMAL128

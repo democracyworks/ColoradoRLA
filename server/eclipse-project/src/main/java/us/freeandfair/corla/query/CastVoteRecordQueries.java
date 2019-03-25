@@ -38,10 +38,8 @@ import org.hibernate.query.Query;
 
 import us.freeandfair.corla.Main;
 import us.freeandfair.corla.model.CastVoteRecord;
-import us.freeandfair.corla.model.CVRAuditInfo;
 import us.freeandfair.corla.model.CastVoteRecord.RecordType;
 import us.freeandfair.corla.persistence.Persistence;
-// import us.freeandfair.corla.controller.BallotSelection.Tribute;
 import us.freeandfair.corla.model.Tribute;
 
 /**
@@ -50,6 +48,7 @@ import us.freeandfair.corla.model.Tribute;
  * @author Daniel M. Zimmerman <dmz@freeandfair.us>
  * @version 1.0.0
  */
+@SuppressWarnings({"PMD.GodClass"})
 public final class CastVoteRecordQueries {
   /**
    * The "county ID" field.
@@ -620,7 +619,7 @@ public final class CastVoteRecordQueries {
 
   /** select every acvr which has been submitted for the the given cvr ids,
    * including revisions(reaudits) **/
-  public static List<CastVoteRecord> activityReport(List<Long> contestCVRIds) {
+  public static List<CastVoteRecord> activityReport(final List<Long> contestCVRIds) {
     final Session s = Persistence.currentSession();
     final Query q =
         s.createQuery("select acvr from CastVoteRecord acvr "
@@ -634,7 +633,7 @@ public final class CastVoteRecordQueries {
 
   /** select every acvr which has been submitted for the the given cvr ids,
    * excluding revisions(reaudits) **/
-  public static List<CastVoteRecord> resultsReport(List<Long> contestCVRIds) {
+  public static List<CastVoteRecord> resultsReport(final List<Long> contestCVRIds) {
     final Session s = Persistence.currentSession();
     final Query q =
       s.createQuery("select acvr from CastVoteRecord acvr "

@@ -14,15 +14,14 @@ package us.freeandfair.corla.endpoint;
 import spark.Request;
 import spark.Response;
 
-import java.util.List;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.io.OutputStream;
 
+import java.util.Locale;
+
 import org.apache.cxf.attachment.Rfc5987Util;
 
-import us.freeandfair.corla.asm.ASMEvent;
 import us.freeandfair.corla.controller.AuditReport;
 import us.freeandfair.corla.util.SparkHelper;
 
@@ -57,12 +56,12 @@ public class PublishAuditReport extends AbstractDoSDashboardEndpoint {
     return AuthorizationType.STATE;
   }
 
-  public String capitalize(final String string) {
-    return string.substring(0,1).toUpperCase()
+  private String capitalize(final String string) {
+    return string.substring(0,1).toUpperCase(Locale.US)
       + string.substring(1);
   }
 
-  public String fileName(final String reportType) {
+  private String fileName(final String reportType) {
     try {
       return Rfc5987Util.encode(String.format("%s_Report.xlsx",
                                               capitalize(reportType)),
@@ -97,22 +96,14 @@ public class PublishAuditReport extends AbstractDoSDashboardEndpoint {
             response.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.header("Content-Disposition", "attachment; filename*=UTF-8''" + fileName(reportType));
             break;
-          // not yet supported
-          // case "csv": case "text/csv":
-          //   response.header("Content-Type", "text/csv");
-          //   response.header("Content-Disposition", "attachment; filename*=UTF-8''" + fileName(reportType));
-          // case "json": case "application/json":
-          //   response.header("Content-Type", "application/json");
-          default:
+      default:
             invariantViolation(response, "Accept header or query param contentType is missing or invalid");
             return my_endpoint_result.get();
       }
 
-      if (null != reportBytes) {
-        final OutputStream os = SparkHelper.getRaw(response).getOutputStream();
-        os.write(reportBytes);
-        os.close();
-      }
+      final OutputStream os = SparkHelper.getRaw(response).getOutputStream();
+      os.write(reportBytes);
+      os.close();
 
       ok(response);
     } catch (final IOException e) {

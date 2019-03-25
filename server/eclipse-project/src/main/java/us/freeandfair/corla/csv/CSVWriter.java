@@ -2,11 +2,11 @@ package us.freeandfair.corla.csv;
 
 
 import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.List;
 
@@ -14,7 +14,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 
 /** to render a CSV as an http response  **/
-public class CSVWriter {
+public final class CSVWriter {
 
   /** no instantiation **/
   private CSVWriter () {}
@@ -25,13 +25,14 @@ public class CSVWriter {
    **/
   public static void write(final OutputStream os,
                            final List<List<String>> rows) throws IOException {
-    Writer writer = new BufferedWriter(new OutputStreamWriter(os));
-    CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT);
+    final Writer writer = new BufferedWriter(new OutputStreamWriter(os, UTF_8.name()));
+    final CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT);
 
-    for (List<String> row: rows) {
+    for (final List<String> row: rows) {
       csvPrinter.printRecord(row);
     }
     writer.flush();
     writer.close();
   }
+
 }

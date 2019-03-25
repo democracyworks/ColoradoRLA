@@ -358,17 +358,6 @@ public class ComparisonAudit implements PersistentEntity {
     return my_audit_reason;
   }
 
-  // public Integer totalVotesForWinner() {
-  //   // assuming winners allowed is always 1
-  //   // first, and only, winner
-  //   String winner = contestResult().getWinners().iterator().next();
-  //   return contestResult().getVoteTotals().get(winner);
-  // }
-
-  // public Integer totalVotesForRunnerUp() {
-  //   String winner = contestResult().getWinners().iterator().next();
-  // }
-
   /**
    * @return the audit status associated with this audit.
    */
@@ -804,10 +793,11 @@ public class ComparisonAudit implements PersistentEntity {
   }
 
   /**
-   * get the discrepancy value that was recorded for this ComparisonAudit(contest) on
-   * the given CVRAuditInfo(ballot). used for reporting.
+   * get the discrepancy value that was recorded for this
+   * ComparisonAudit(contest) on the given CVRAuditInfo(ballot). used for
+   * reporting.
    **/
-  public Integer getDiscrepancy(CVRAuditInfo cai) {
+  public Integer getDiscrepancy(final CVRAuditInfo cai) {
     return my_discrepancies.get(cai);
   }
 

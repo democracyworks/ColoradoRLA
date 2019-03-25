@@ -249,7 +249,7 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
    */
   public List<ContestResult> countAndSaveContests(final Set<ContestToAudit> cta) {
     LOGGER.debug(String.format("[countAndSaveContests: cta=%s]", cta));
-    Map<String, AuditReason> tcr = targetedContestReasons(cta);
+    final Map<String, AuditReason> tcr = targetedContestReasons(cta);
 
     return
       ContestCounter.countAllContests().stream()
@@ -269,10 +269,6 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                                         final BigDecimal riskLimit) {
 
     final List<Selection> selections = new ArrayList<>();
-    // maybe...
-    // comparisonAudits.stream()
-    //   .filter(ca -> ca.isTargeted())
-    //   .map(BallotSelection::randomSelection)
 
     for(final ComparisonAudit comparisonAudit: comparisonAudits) {
       final ContestResult contestResult = comparisonAudit.contestResult();
@@ -284,9 +280,6 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
         final Selection selection =
           BallotSelection.randomSelection(contestResult, seed,
                                           startIndex, endIndex);
-
-        // maybe store the tributes like this(?)
-        // selection.segments.values().stream().flatMap(s -> s.tributes).map(Persistence::persist)
 
         LOGGER.debug(String.format("[makeSelections for ContestResult: contestName=%s, "
                                    + "contestResult.contestCVRIds=%s, selection=%s, "

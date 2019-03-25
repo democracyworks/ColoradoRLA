@@ -88,7 +88,8 @@ public final class CountyQueries {
   }
 
 
-  public static String getName(Long countyId) {
+  /** get name for the county id, which should never change **/
+  public static String getName(final Long countyId) {
     final Session s = Persistence.currentSession();
     final Query q =
       s.createQuery("select c.my_name from County c "
