@@ -1,0 +1,15 @@
+FROM node:8 as node
+
+WORKDIR /srv/corla/client
+
+COPY package.json /srv/corla/client
+COPY npm-shrinkwrap.json /srv/corla/client/npm-shrinkwrap.json
+
+RUN npm install
+
+# use the client/ dir as context
+COPY . /srv/corla/client
+
+RUN npm run lint
+# modus operandi: if you can build it you can run it
+RUN npm run pack

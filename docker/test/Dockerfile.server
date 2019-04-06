@@ -1,0 +1,17 @@
+FROM maven:3.6 as maven
+
+WORKDIR /srv/corla/server/eclipse-project
+
+ADD eclipse-project/pom.xml /srv/corla/server/eclipse-project/pom.xml
+
+# cache the expensive command to download everything
+# RUN mvn dependency:go-offline does not get everything, not sure why this one does:
+RUN mvn -B -e -C -T 1C org.apache.maven.plugins:maven-dependency-plugin:3.0.2:go-offline
+
+# use the client/ dir as context
+ADD eclipse-project /srv/corla/server/eclipse-project
+
+RUN mvn clean
+
+# verify runs test,pwd, and findbugs, so if the image builds, they all passed
+RUN mvn --offline verify

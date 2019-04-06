@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -eux -o pipefail
 
+cd $TRAVIS_BUILD_DIR
 # Exit early if there were no client changes.
-"${TRAVIS_BUILD_DIR}/ci/changes-in-dir" client || exit 0
+.ci/changes-in-dir client || exit 0
 
-cd "${CLIENT_DIR}"
-npm run lint
-npm run pack
-npm test
+docker build -t corla-client -f docker/test/Dockerfile.client client
+
+popd

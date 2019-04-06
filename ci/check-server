@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -eux -o pipefail
 
+cd $TRAVIS_BUILD_DIR
 # Exit early if there were no server changes.
-"${TRAVIS_BUILD_DIR}/ci/changes-in-dir" server || exit 0
+.ci/changes-in-dir server || exit 0
 
-cd "${SERVER_DIR}"
-mvn verify
+docker build -t corla-server -f docker/test/Dockerfile.server server
+
+popd
