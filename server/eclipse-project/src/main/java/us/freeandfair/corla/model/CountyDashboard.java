@@ -515,6 +515,20 @@ public class CountyDashboard implements PersistentEntity {
     }
   }
 
+  /** all the cvr ids that have been selected from previous rounds **/
+  public Set<Long> previouslyAudited() {
+    // this might be better:
+    // return CastVoteRecordQueries.previouslyAudited(this);
+
+    // this one will need to
+    // consider rounds that are in progress because ballotSequence will not
+    // equal the audited ids in that case
+    return rounds().stream()
+      .map(r -> r.ballotSequence())
+      .flatMap(s -> s.stream())
+      .collect(Collectors.toSet());
+  }
+
   /**
    * Begins a new round with the specified number of ballots to audit
    * and expected achieved prefix length, starting at the specified index

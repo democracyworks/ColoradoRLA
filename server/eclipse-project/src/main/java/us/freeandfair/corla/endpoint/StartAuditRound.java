@@ -375,8 +375,14 @@ public class StartAuditRound extends AbstractDoSDashboardEndpoint {
                       cdb,
                       segment.cvrsInBallotSequence()));
 
+          final Set<Long> previouslyAudited = cdb.previouslyAudited();
+
+          final List<CastVoteRecord> uniqueNewCvrs = ballotSequenceCVRs.stream()
+            .filter(cvr -> !previouslyAudited.contains(cvr.id()))
+            .collect(Collectors.toList());
+
           // ballotSequence is *just* the CVR IDs, as expected.
-          final List<Long> ballotSequence = ballotSequenceCVRs.stream()
+          final List<Long> ballotSequence = uniqueNewCvrs.stream()
               .map(cvr -> cvr.id())
               .collect(Collectors.toList());
 
