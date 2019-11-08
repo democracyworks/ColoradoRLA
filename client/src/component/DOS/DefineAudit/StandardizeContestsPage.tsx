@@ -115,12 +115,7 @@ const ContestRow = (props: ContestRowProps) => {
 
     const standards = canonicalContests[countyName];
 
-    const defaultName = defaultCanonicalName(contest.name, standards);
-
-    // Trigger an update when a default gets chosen
-    if ('' !== defaultName) {
-        updateFormData({ id: contest.id, name: defaultName });
-    }
+    const defaultName = '';
 
     const changeHandler = (e: React.FormEvent<HTMLSelectElement>) => {
         const v = e.currentTarget.value;

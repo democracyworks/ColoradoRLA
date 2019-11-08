@@ -117,16 +117,7 @@ const TableRow = (props: TableRowProps) => {
 
     const choices = row.choices;
 
-    const defaultName = defaultCanonicalName(row.choiceName, choices);
-
-    // Trigger an update when a default gets chosen
-    if ('' !== defaultName) {
-        updateFormData({
-            contestId: row.contestId,
-            currentChoiceName: row.choiceName,
-            newChoiceName: defaultName,
-        });
-    }
+    const defaultName = '';
 
     const changeHandler = (e: React.FormEvent<HTMLSelectElement>) => {
         const v = e.currentTarget.value;
