@@ -60,11 +60,12 @@ interface UpdateFormMessage {
 interface TableProps {
     contests: DOS.Contests;
     canonicalContests: DOS.CanonicalContests;
+    formData: DOS.Form.StandardizeContests.FormData;
     updateFormData: (msg: UpdateFormMessage) => void;
 }
 
 const StandardizeContestsTable = (props: TableProps) => {
-    const { canonicalContests, contests, updateFormData } = props;
+    const { canonicalContests, contests, formData, updateFormData } = props;
 
     return (
         <table className='pt-html-table pt-html-table-striped'>
@@ -77,6 +78,7 @@ const StandardizeContestsTable = (props: TableProps) => {
             </thead>
             <ContestBody contests={ contests }
                          canonicalContests={ canonicalContests }
+                         formData={ formData }
                          updateFormData={ updateFormData } />
         </table>
     );
@@ -85,16 +87,18 @@ const StandardizeContestsTable = (props: TableProps) => {
 interface BodyProps {
     contests: DOS.Contests;
     canonicalContests: DOS.CanonicalContests;
+    formData: DOS.Form.StandardizeContests.FormData;
     updateFormData: (msg: UpdateFormMessage) => void;
 }
 
 const ContestBody = (props: BodyProps) => {
-    const { canonicalContests, contests, updateFormData } = props;
+    const { canonicalContests, contests, formData, updateFormData } = props;
 
     const rows = _.map(contests, c => {
         return <ContestRow key={ c.id }
                            contest={ c }
                            canonicalContests={ canonicalContests }
+                           formData={ formData }
                            updateFormData={ updateFormData } />;
     });
 
@@ -106,21 +110,14 @@ const ContestBody = (props: BodyProps) => {
 interface ContestRowProps {
     contest: Contest;
     canonicalContests: DOS.CanonicalContests;
+    formData: DOS.Form.StandardizeContests.FormData;
     updateFormData: (msg: UpdateFormMessage) => void;
 }
 
 const ContestRow = (props: ContestRowProps) => {
-    const { canonicalContests, contest, updateFormData } = props;
+    const { canonicalContests, contest, formData, updateFormData } = props;
     const countyName = counties[contest.countyId].name;
-
     const standards = canonicalContests[countyName];
-
-    const defaultName = defaultCanonicalName(contest.name, standards);
-
-    // Trigger an update when a default gets chosen
-    if ('' !== defaultName) {
-        updateFormData({ id: contest.id, name: defaultName });
-    }
 
     const changeHandler = (e: React.FormEvent<HTMLSelectElement>) => {
         const v = e.currentTarget.value;
@@ -137,7 +134,7 @@ const ContestRow = (props: ContestRowProps) => {
                     <select className='max-width-select'
                             name={ String(contest.id) }
                             onChange={ changeHandler }
-                            defaultValue={ defaultName }>
+                            value={ _.get(formData, `${contest.id}.name`, '') }>
                         <option value=''>-- No change --</option>
                         {
                           _.map(standards, n => <option value={ n }>{ n }</option>)
@@ -157,13 +154,47 @@ interface PageProps {
     back: () => void;
 }
 
-class StandardizeContestsPage extends React.Component<PageProps> {
-    public formData: DOS.Form.StandardizeContests.FormData = {};
+interface PageState {
+    formData: DOS.Form.StandardizeContests.FormData;
+}
 
+class StandardizeContestsPage extends React.Component<PageProps, PageState> {
     public constructor(props: PageProps) {
         super(props);
 
+        this.state = {
+            formData: {},
+        };
+
         this.updateFormData = this.updateFormData.bind(this);
+    }
+
+    /*
+     * Run when contest and canonical contest data loads in and populate the
+     * form state with initial contest guesses.
+     */
+    public componentDidUpdate(prevProps: PageProps, prevState: PageState) {
+        if (!prevProps.areContestsLoaded && this.props.areContestsLoaded) {
+            const {
+                canonicalContests,
+                contests,
+            } = this.props;
+
+            const formData: DOS.Form.StandardizeContests.FormData = {};
+
+            _.forEach(contests, contest => {
+                const countyName = counties[contest.countyId].name;
+                const standards = canonicalContests[countyName];
+
+                const defaultName = defaultCanonicalName(contest.name, standards);
+
+                if (!_.isEmpty(defaultName)) {
+                    formData[contest.id] = { name: defaultName };
+                }
+            });
+
+            this.setState({ formData });
+        }
     }
 
     public render() {
@@ -178,8 +209,6 @@ class StandardizeContestsPage extends React.Component<PageProps> {
         let main = null;
 
         if (areContestsLoaded) {
-            this.formData = {};
-
             main =
                 <div>
                     <Breadcrumbs />
@@ -197,12 +226,13 @@ class StandardizeContestsPage extends React.Component<PageProps> {
 
                         <StandardizeContestsTable canonicalContests={ canonicalContests }
                                                   contests={ contests }
+                                                  formData={ this.state.formData }
                                                   updateFormData={ this.updateFormData } />
                     </Card>
                     <Button onClick={ back }>Back</Button>
                     <Button className='ml-default'
                             intent={ Intent.PRIMARY }
-                            onClick={ () => forward(this.formData) }>
+                            onClick={ () => forward(this.state.formData) }>
                         Save & Next
                     </Button>
                 </div>;
@@ -231,11 +261,15 @@ class StandardizeContestsPage extends React.Component<PageProps> {
     private updateFormData(msg: UpdateFormMessage) {
         const { id, name } = msg;
 
+        const formData = this.state.formData;
+
         if (_.isEmpty(name)) {
-            delete this.formData[id];
+            delete formData[id];
         } else {
-            this.formData[id] = { name };
+            formData[id] = { name };
         }
+
+        this.setState({ formData });
     }
 }
 
