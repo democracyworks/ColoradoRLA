@@ -59,12 +59,13 @@ interface UpdateFormMessage {
 
 interface TableProps {
     contests: DOS.Contests;
+    formData: DOS.Form.StandardizeChoices.FormData;
     rows: DOS.Form.StandardizeChoices.Row[];
     updateFormData: (msg: UpdateFormMessage) => void;
 }
 
 const Table = (props: TableProps) => {
-    const { contests, rows, updateFormData } = props;
+    const { contests, formData, rows, updateFormData } = props;
 
     return (
         <table className='pt-html-table pt-html-table-striped'>
@@ -78,6 +79,7 @@ const Table = (props: TableProps) => {
             </thead>
             <TableBody contests={ contests }
                        rows={ rows }
+                       formData={ formData }
                        updateFormData={ updateFormData } />
         </table>
     );
@@ -85,21 +87,23 @@ const Table = (props: TableProps) => {
 
 interface TableBodyProps {
     contests: DOS.Contests;
+    formData: DOS.Form.StandardizeChoices.FormData;
     rows: DOS.Form.StandardizeChoices.Row[];
     updateFormData: (msg: UpdateFormMessage) => void;
 }
 
 const TableBody = (props: TableBodyProps) => {
-    const { contests, rows, updateFormData } = props;
+    const { contests, formData, rows, updateFormData } = props;
 
     const key = (row: DOS.Form.StandardizeChoices.Row) =>
-        row.contestName + ',' + row.choiceName;
+        row.countyName + ',' + row.contestName + ',' + row.choiceName;
 
     return (
         <tbody>
         {
             _.map(rows, row =>
                 <TableRow key={ key(row) }
+                          formData={ formData }
                           row={ row }
                           updateFormData={ updateFormData} />)
         }
@@ -109,24 +113,14 @@ const TableBody = (props: TableBodyProps) => {
 
 interface TableRowProps {
     row: DOS.Form.StandardizeChoices.Row;
+    formData: DOS.Form.StandardizeChoices.FormData;
     updateFormData: (msg: UpdateFormMessage) => void;
 }
 
 const TableRow = (props: TableRowProps) => {
-    const { row, updateFormData } = props;
+    const { row, formData, updateFormData } = props;
 
     const choices = row.choices;
-
-    const defaultName = defaultCanonicalName(row.choiceName, choices);
-
-    // Trigger an update when a default gets chosen
-    if ('' !== defaultName) {
-        updateFormData({
-            contestId: row.contestId,
-            currentChoiceName: row.choiceName,
-            newChoiceName: defaultName,
-        });
-    }
 
     const changeHandler = (e: React.FormEvent<HTMLSelectElement>) => {
         const v = e.currentTarget.value;
@@ -147,12 +141,12 @@ const TableRow = (props: TableRowProps) => {
                 <form>
                     <select className='max-width-select'
                             onChange={ changeHandler }
-                            defaultValue={ defaultName }>
+                            value={ _.get(formData, `${row.contestId }.${row.choiceName}`, '') }>
                         <option key='' value=''>-- No change --</option>
                         {
-                          _.map(choices, (choice, idx) => {
-                              return <option key={ idx } value={ choice }>{ choice }</option>;
-                          })
+                            _.map(choices, (choice, idx) => {
+                                return <option key={ idx } value={ choice }>{ choice }</option>;
+                            })
                         }
                     </select>
                 </form>
@@ -169,13 +163,43 @@ interface PageProps {
     back: () => void;
 }
 
-class Page extends React.Component<PageProps> {
-    public formData: DOS.Form.StandardizeChoices.FormData = {};
+interface PageState {
+    formData: DOS.Form.StandardizeChoices.FormData;
+}
 
+class Page extends React.Component<PageProps, PageState> {
     public constructor(props: PageProps) {
         super(props);
 
+        this.state = {
+            formData: {},
+        };
+
         this.updateFormData = this.updateFormData.bind(this);
+    }
+
+    /*
+     * Run when choices data loads in and populate the form state with initial
+     * choice guesses.
+     */
+    public componentDidUpdate(prevProps: PageProps, prevState: PageState) {
+        if (!prevProps.areChoicesLoaded && this.props.areChoicesLoaded) {
+            const { rows } = this.props;
+
+            const formData: DOS.Form.StandardizeChoices.FormData = {};
+
+            _.forEach(rows, row => {
+                const { choiceName, choices } = row;
+
+                const defaultChoice = defaultCanonicalName(choiceName, choices);
+
+                if (!_.isEmpty(defaultChoice)) {
+                    _.set(formData, `${row.contestId}.${row.choiceName}`, defaultChoice);
+                }
+            });
+
+            this.setState({ formData });
+        }
     }
 
     public render() {
@@ -190,8 +214,6 @@ class Page extends React.Component<PageProps> {
         let main = null;
 
         if (areChoicesLoaded) {
-            this.formData = {};
-
             main =
                 <div>
                     <Breadcrumbs />
@@ -209,6 +231,7 @@ class Page extends React.Component<PageProps> {
                         </p>
 
                         <Table contests={ contests }
+                               formData={ this.state.formData }
                                rows={ rows }
                                updateFormData={ this.updateFormData } />
                     </Card>
@@ -216,7 +239,7 @@ class Page extends React.Component<PageProps> {
                             className='pt-breadcrumb'>
                         Back
                     </Button>
-                    <Button onClick={ () => forward(this.formData) }
+                    <Button onClick={ () => forward(this.state.formData) }
                             intent={ Intent.PRIMARY }
                             className='pt-breadcrumb'>
                         Save & Next
@@ -248,19 +271,23 @@ class Page extends React.Component<PageProps> {
     private updateFormData(msg: UpdateFormMessage) {
         const { contestId, currentChoiceName, newChoiceName } = msg;
 
-        if ('' === newChoiceName) {
-            delete this.formData[contestId][currentChoiceName];
+        const formData = this.state.formData;
 
-            if (_.isEmpty(this.formData[contestId])) {
-                delete this.formData[contestId];
+        if ('' === newChoiceName) {
+            delete formData[contestId][currentChoiceName];
+
+            if (_.isEmpty(formData[contestId])) {
+                delete formData[contestId];
             }
         } else {
-            _.merge(this.formData, {
+            _.merge(formData, {
                 [contestId]: {
                     [currentChoiceName]: newChoiceName,
                 },
             });
         }
+
+        this.setState({ formData });
     }
 }
 
