@@ -10,6 +10,9 @@ with the following tags indicating the components affected:
 - `TOOLING` refers to changes to tooling that falls outside the UI or API, such
   as the RLA export.
 
+## 2.3.9 - Bugfix release
+- [UI - Fix contest and choice standardization][pr176]
+
 ## 2.3.8 - Bugfix release
 - Fix timing bug in standardization process
 
@@ -300,3 +303,4 @@ This is [FreeAndFair's most recent tag][1.1.0.3].
 [pr171]: https://github.com/democracyworks/ColoradoRLA/pull/171
 [pr173]: https://github.com/democracyworks/ColoradoRLA/pull/173
 [pr174]: https://github.com/democracyworks/ColoradoRLA/pull/174
+[pr176]: https://github.com/democracyworks/ColoradoRLA/pull/176
